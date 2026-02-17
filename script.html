@@ -4510,7 +4510,7 @@
 				const totalMarketWords = state.wordSlots ? state.wordSlots.length : 1;
 				const marketShare = unionCapacity / Math.max(1, totalMarketWords);
 
-				const needsApproval = marketShare > 0.25 || (highestBkt === "IC" && members.length >= 3) || ANTITRUST_SET.has(highestBkt);
+				const needsApproval = (marketShare > 0.49 && ["MN", "IC"].includes(highestBkt)) || ANTITRUST_SET.has(highestBkt);
 
 				if (needsApproval) {
 					if (state._autoRejectEnabled) {
@@ -6021,7 +6021,6 @@
 
 				if (wordDelta !== 0) {
 					rollEconomy(wordDelta);
-					pendingDelta += wordDelta;
 				}
 				lastWordCount = currentWords;
 
@@ -6031,19 +6030,16 @@
 
 					const editor = $("#editor");
 					const savedSel = saveSelection(editor);
+
 					processAutoDialogue();
 					restoreSelection(editor, savedSel);
-
-					if (pendingDelta !== 0) {
-						simulateStep();
-						pendingDelta = 0;
-					}
 
 					recalculateSpending();
 
 					updatePanel();
 					renderUnionsPanel();
 					renderStockExchange();
+
 					state.editorHTML = editor.innerHTML;
 					isProcessing = false;
 				}, 250);
@@ -6663,7 +6659,9 @@
 				};
 			}
 			function willResistWithMemory(co, deletionKey) {
-				if (!state.resistanceMemory) state.resistanceMemory = new Map();
+				if (!state.resistanceMemory || !(state.resistanceMemory instanceof Map)) {
+					state.resistanceMemory = new Map();
+				}
 
 				const memoryKey = `${co.id}:${deletionKey}`;
 
@@ -6675,10 +6673,11 @@
 				state.resistanceMemory.set(memoryKey, decision);
 				return decision;
 			}
-
 			function clearResistanceMemory() {
-				if (state.resistanceMemory) {
+				if (state.resistanceMemory && typeof state.resistanceMemory.clear === "function") {
 					state.resistanceMemory.clear();
+				} else {
+					state.resistanceMemory = new Map();
 				}
 			}
 			function checkMergerResistance(delStart, delEnd) {
@@ -6699,9 +6698,8 @@
 				const word1Tagged = taggedRanges.some((tr) => tr.start <= merger.word1.start && tr.end >= merger.word1.end);
 				const word2Tagged = taggedRanges.some((tr) => tr.start <= merger.word2.start && tr.end >= merger.word2.end);
 
-				// Only resist if BOTH words are untagged (private)
 				if (word1Tagged || word2Tagged) {
-					return null; // Don't resist if government is involved
+					return null;
 				}
 				const allWords = [];
 				const rx = /\S+/g;
@@ -6927,11 +6925,39 @@
 				});
 
 				const editor = $("#editor");
-				let inputDebounce = null;
-				editor.addEventListener("input", () => {
+				let renderDebounce = null;
+
+				editor.addEventListener("input", (e) => {
 					if (isProcessing) return;
-					clearTimeout(inputDebounce);
-					inputDebounce = setTimeout(() => onContentChange(), 50);
+
+					simulateStep();
+
+					const currentWords = countAllWords();
+					const wordDelta = currentWords - lastWordCount;
+
+					if (wordDelta !== 0) {
+						rollEconomy(wordDelta);
+						lastWordCount = currentWords;
+					}
+
+					clearTimeout(renderDebounce);
+					renderDebounce = setTimeout(() => {
+						isProcessing = true;
+
+						const savedSel = saveSelection(editor);
+						processAutoDialogue();
+						restoreSelection(editor, savedSel);
+
+						recalculateSpending();
+
+						updatePanel();
+						renderUnionsPanel();
+						renderStockExchange();
+
+						state.editorHTML = editor.innerHTML;
+
+						isProcessing = false;
+					}, 100);
 				});
 				editor.addEventListener("contextmenu", showCtxMenu);
 				document.addEventListener("click", (e) => {
@@ -7197,17 +7223,79 @@
 
 						const co = getCompanyById(cid);
 						if (!co || !co.canResist) continue;
-
 						const slotIdx = untaggedSlotIdxMap[w.globalIdx];
 						const slot = slotIdx !== undefined ? state.wordSlots[slotIdx] : null;
 
 						if (!slot || !slot.letterShares || slot.letterShares.length === 0) {
-							if (!willResistWithMemory(co, `word-${word.globalIdx}`)) continue;
+							if (!willResistWithMemory(co, `word-${w.globalIdx}`)) continue;
 							wordSuingCompanies.set(cid, co);
 							wordAffectedList.push({ word: w, company: co });
 							continue;
 						}
 
+						let totalCharsDeleted = 0;
+						for (let i = 0; i < w.text.length; i++) {
+							const absPos = w.start + i;
+							if (deletionSpans.some((ds) => absPos >= ds.start && absPos < ds.end)) {
+								totalCharsDeleted++;
+							}
+						}
+						const deletionRatio = totalCharsDeleted / Math.max(1, w.text.length);
+
+						if (slot.ownerId === cid) {
+							if (deletionRatio > 0.3) {
+								if (willResistWithMemory(co, `word-${w.globalIdx}`)) {
+									wordSuingCompanies.set(cid, co);
+									wordAffectedList.push({ word: w, company: co });
+								}
+								continue;
+							}
+						}
+
+						if (slot.ownerId === cid) {
+							let unclaimedDeleted = 0;
+							for (let i = 0; i < w.text.length; i++) {
+								const absPos = w.start + i;
+								const isDeleted = deletionSpans.some((ds) => absPos >= ds.start && absPos < ds.end);
+								if (isDeleted) {
+									if (i >= slot.letterShares.length || slot.letterShares[i].ownerId === null) {
+										unclaimedDeleted++;
+									}
+								}
+							}
+							if (unclaimedDeleted > 0) {
+								if (willResistWithMemory(co, `word-${w.globalIdx}`)) {
+									wordSuingCompanies.set(cid, co);
+									wordAffectedList.push({ word: w, company: co });
+								}
+								continue;
+							}
+						}
+
+						let lettersOwnedDeleted = 0;
+						let lettersOwnedTotal = 0;
+
+						for (let i = 0; i < slot.letterShares.length; i++) {
+							const ls = slot.letterShares[i];
+							if (ls.ownerId === cid) {
+								lettersOwnedTotal++;
+								const absPos = w.start + i;
+								if (deletionSpans.some((ds) => absPos >= ds.start && absPos < ds.end)) {
+									lettersOwnedDeleted++;
+								}
+							}
+						}
+
+						if (lettersOwnedTotal > 0) {
+							const impact = lettersOwnedDeleted / lettersOwnedTotal;
+							const resistStr = getResistanceStrength(co);
+							if (impact > 0.4 * (2.0 - 1.5 * resistStr)) {
+								if (willResistWithMemory(co, `word-${w.globalIdx}`)) {
+									wordSuingCompanies.set(cid, co);
+									wordAffectedList.push({ word: w, company: co });
+								}
+							}
+						}
 						let wordOwnerLettersDeleted = 0;
 						let unclaimedLettersDeleted = 0;
 
@@ -7232,7 +7320,7 @@
 						const resistStr = getResistanceStrength(co);
 
 						if (unclaimedLettersDeleted > 0) {
-							if (!willResistWithMemory(co, `word-${word.globalIdx}`)) continue;
+							if (!willResistWithMemory(co, `word-${w.globalIdx}`)) continue;
 							wordSuingCompanies.set(cid, co);
 							wordAffectedList.push({ word: w, company: co });
 							continue;
@@ -7248,7 +7336,7 @@
 						const adjustedThreshold = 0.4 * (2.0 - 1.5 * resistStr);
 
 						if (impactRatio < adjustedThreshold) continue;
-						if (!willResistWithMemory(co, `word-${word.globalIdx}`)) continue;
+						if (!willResistWithMemory(co, `word-${w.globalIdx}`)) continue;
 
 						wordSuingCompanies.set(cid, co);
 						wordAffectedList.push({ word: w, company: co });
@@ -8882,8 +8970,9 @@
 					const si = Math.floor(Math.random() * state.wordSlots.length);
 					const slot = state.wordSlots[si];
 					if (!slot || !slot.letterShares || slot.letterShares.length < 1) continue;
-					if (isSlotGovernmentOwned(si)) continue; // ADD THIS
+					if (isSlotGovernmentOwned(si)) continue;
 
+					if (slot.ownerId === null) continue;
 					const letterVal = getLetterValue(slot);
 					if (letterVal <= 0) continue;
 
@@ -9042,8 +9131,9 @@
 				for (let si = 0; si < state.wordSlots.length && trades < maxTrades; si++) {
 					const slot = state.wordSlots[si];
 					if (!slot || !slot.letterShares || slot.letterShares.length < 2) continue;
-					if (isSlotGovernmentOwned(si)) continue; // ADD THIS
+					if (isSlotGovernmentOwned(si)) continue;
 
+					if (slot.ownerId === null) continue;
 					const ownership = {};
 					slot.letterShares.forEach((ls, li) => {
 						if (ls.ownerId !== null) {
@@ -9113,6 +9203,7 @@
 					const slot = state.wordSlots[si];
 					if (!slot || !slot.letterShares) continue;
 
+					if (slot.ownerId === null) continue;
 					for (let li = 0; li < slot.letterShares.length && trades < maxTrades; li++) {
 						const ls = slot.letterShares[li];
 						if (ls.ownerId === null) continue;
@@ -9465,11 +9556,12 @@
 				for (let si = 0; si < state.wordSlots.length; si++) {
 					const slot = state.wordSlots[si];
 					if (!slot || !slot.letterShares) continue;
-					if (isSlotGovernmentOwned(si)) continue; // ADD THIS
+					if (isSlotGovernmentOwned(si)) continue;
 					for (let li = 0; li < slot.letterShares.length; li++) {
 						const ls = slot.letterShares[li];
 						if (ls.ownerId === null) continue;
 
+						if (slot.ownerId === null) continue;
 						const owner = getCompanyById(ls.ownerId);
 						if (!owner || !owner.isActive) continue;
 
@@ -9813,12 +9905,13 @@
 
 						const letterChar = w.text[charPos] || "?";
 						if (letterChar.trim() === "" || /^[^\w\s]+$/.test(letterChar)) {
-							continue; // Skip invalid letters
+							continue;
 						}
 						entry.letters.push({
 							wordText: wordText,
 							letterIndex: charPos,
 							absolutePos: absPos,
+							letterChar: letterChar,
 							slotIndex: slotIdx,
 							paidValue: letterValue,
 							claimedAmount: claimedAmount,

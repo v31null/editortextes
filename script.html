@@ -2193,7 +2193,7 @@
 				modPlaintiff: ["The plaintiff's argument carries marginally more weight on this point.", "The court finds the claimant's position slightly more persuasive in this hearing.", "The defendant's argument, while not without merit, falls short of the plaintiff's cited authority.", "The claimant's legal basis is somewhat stronger. The point favours the plaintiff."],
 				strongPlaintiff: ["The court is strongly persuaded by the plaintiff's argument. The defence is materially weakened.", "The cited precedent overwhelmingly supports the claimant's position on this matter.", "The defendant's argument lacks sufficient legal foundation to counter the plaintiff's authority.", "A commanding argument by the plaintiff. The defendant's position is critically undermined."],
 			};
-
+			const WORD_BLACKLIST = new Set([",", ".", "—", "–", "’", "⸻", "—", "⸺", "-", ";", ":", "&", "'", "’", "\u2018", "\u2019", "\u201c", "\u201d", "«", "»", "!", "?", "…", "(", ")", "[", "]", "{", "}", "/", "\\", "|", "*", "〜", "#", "@", "%", "^", "~", "`", "+", "=", "<", ">", '"', "_"]);
 			function getJudgeRemark(category) {
 				const pool = JUDGE_REMARKS[category] || JUDGE_REMARKS.tie;
 				return pool[Math.floor(Math.random() * pool.length)];
@@ -2940,16 +2940,14 @@
 				ctx.lineWidth = 1.5;
 				ctx.stroke();
 			}
-
 			function countAllWords() {
 				const editor = $("#editor");
 				if (!editor) return 0;
 				const text = editor.innerText || "";
-				const words = text
+				return text
 					.trim()
 					.split(/\s+/)
-					.filter((w) => w.length > 0);
-				return words.length;
+					.filter((w) => isValidWord(w)).length;
 			}
 
 			function countAllChars() {
@@ -2957,13 +2955,12 @@
 				if (!editor) return 0;
 				return (editor.innerText || "").length;
 			}
-
 			function countWordsInElement(el) {
 				const text = el.textContent || "";
 				return text
 					.trim()
 					.split(/\s+/)
-					.filter((w) => w.length > 0).length;
+					.filter((w) => isValidWord(w)).length;
 			}
 
 			function recalculateSpending() {
@@ -3752,13 +3749,15 @@
 				const rx = /\S+/g;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
-					allWords.push({
-						start: m.index,
-						end: m.index + m[0].length,
-						text: m[0],
-						length: m[0].length,
-						globalIdx: allWords.length,
-					});
+					if (isValidWord(m[0])) {
+						allWords.push({
+							start: m.index,
+							end: m.index + m[0].length,
+							text: m[0],
+							length: m[0].length,
+							globalIdx: allWords.length,
+						});
+					}
 				}
 
 				const word = allWords.find((w) => cursorPos > w.start && cursorPos < w.end);
@@ -3983,13 +3982,15 @@
 				const rx = /\S+/g;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
-					allWords.push({
-						start: m.index,
-						end: m.index + m[0].length,
-						text: m[0],
-						length: m[0].length,
-						globalIdx: allWords.length,
-					});
+					if (isValidWord(m[0])) {
+						allWords.push({
+							start: m.index,
+							end: m.index + m[0].length,
+							text: m[0],
+							length: m[0].length,
+							globalIdx: allWords.length,
+						});
+					}
 				}
 
 				let uIdx = 0;
@@ -4177,7 +4178,6 @@
 					if (c.cash < 0) confTarget -= 0.3;
 					confTarget = Math.max(0, Math.min(1, confTarget));
 					c._marketConfidence += (confTarget - c._marketConfidence) * c._learningRate;
-
 
 					let targetBid;
 					if (wonLast) {
@@ -5023,7 +5023,9 @@
 				const rx = /\S+/g;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
-					allWords.push({ start: m.index, end: m.index + m[0].length, text: m[0], globalIdx: allWords.length });
+					if (isValidWord(m[0])) {
+						allWords.push({ start: m.index, end: m.index + m[0].length, text: m[0], globalIdx: allWords.length });
+					}
 				}
 
 				const taggedRanges = [];
@@ -5094,7 +5096,9 @@
 				const rx = /\S+/g;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
-					allWords.push({ start: m.index, end: m.index + m[0].length, text: m[0], globalIdx: allWords.length });
+					if (isValidWord(m[0])) {
+						allWords.push({ start: m.index, end: m.index + m[0].length, text: m[0], globalIdx: allWords.length });
+					}
 				}
 
 				return allWords.filter((w) => deletionSpans.some((ds) => w.start >= ds.start && w.end <= ds.end));
@@ -5113,7 +5117,9 @@
 				const rx = /\S+/g;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
-					allWords.push({ start: m.index, end: m.index + m[0].length, text: m[0], globalIdx: allWords.length });
+					if (isValidWord(m[0])) {
+						allWords.push({ start: m.index, end: m.index + m[0].length, text: m[0], globalIdx: allWords.length });
+					}
 				}
 
 				let uIdx = 0;
@@ -5644,8 +5650,6 @@
 			}
 			function applySegments(editor, segments) {
 				const fullText = editor.textContent || "";
-
-
 
 				const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
 				const textNodes = [];
@@ -6556,8 +6560,7 @@
 								tagSelection(targetMinistry);
 								state.ministryMode = targetMinistry;
 								showMinistryModeIndicator(state.ministryMode);
-							}
-							else {
+							} else {
 								if (state.ministryMode === targetMinistry) {
 									exitCurrentTag();
 								} else {
@@ -6636,12 +6639,14 @@
 				const rx = /\S+/g;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
-					allWords.push({
-						start: m.index,
-						end: m.index + m[0].length,
-						text: m[0],
-						globalIdx: allWords.length,
-					});
+					if (isValidWord(m[0])) {
+						allWords.push({
+							start: m.index,
+							end: m.index + m[0].length,
+							text: m[0],
+							globalIdx: allWords.length,
+						});
+					}
 				}
 
 				const word1 = allWords.find((w) => w.start >= w1Start && w.end <= delStart);
@@ -6691,16 +6696,25 @@
 					taggedRanges.push(getCharOffsets(editor, tag));
 				});
 
+				const word1Tagged = taggedRanges.some((tr) => tr.start <= merger.word1.start && tr.end >= merger.word1.end);
+				const word2Tagged = taggedRanges.some((tr) => tr.start <= merger.word2.start && tr.end >= merger.word2.end);
+
+				// Only resist if BOTH words are untagged (private)
+				if (word1Tagged || word2Tagged) {
+					return null; // Don't resist if government is involved
+				}
 				const allWords = [];
 				const rx = /\S+/g;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
-					allWords.push({
-						start: m.index,
-						end: m.index + m[0].length,
-						text: m[0],
-						globalIdx: allWords.length,
-					});
+					if (isValidWord(m[0])) {
+						allWords.push({
+							start: m.index,
+							end: m.index + m[0].length,
+							text: m[0],
+							globalIdx: allWords.length,
+						});
+					}
 				}
 
 				let uIdx = 0;
@@ -6880,8 +6894,7 @@
 							if (perm === "granted") {
 								try {
 									saveDirHandle = await storedHandle.getDirectoryHandle("saves", { create: false });
-								} catch (_) {
-								}
+								} catch (_) {}
 							}
 							updateSaveLocationDisplay();
 						}
@@ -7112,12 +7125,14 @@
 					const rx = /\S+/g;
 					let m;
 					while ((m = rx.exec(fullText)) !== null) {
-						allWords.push({
-							start: m.index,
-							end: m.index + m[0].length,
-							text: m[0],
-							globalIdx: allWords.length,
-						});
+						if (isValidWord(m[0])) {
+							allWords.push({
+								start: m.index,
+								end: m.index + m[0].length,
+								text: m[0],
+								globalIdx: allWords.length,
+							});
+						}
 					}
 
 					const affectedWords = allWords.filter((w) => deletionSpans.some((ds) => w.start < ds.end && w.end > ds.start));
@@ -7192,7 +7207,6 @@
 							wordAffectedList.push({ word: w, company: co });
 							continue;
 						}
-
 
 						let wordOwnerLettersDeleted = 0;
 						let unclaimedLettersDeleted = 0;
@@ -7914,6 +7928,13 @@
 				document.body.appendChild(overlay);
 				showPhase1();
 			}
+			function isValidWord(text) {
+				if (!text || text.trim() === "") return false;
+				if (text === "\n" || text === "\r\n" || text === "\r") return false;
+				if (WORD_BLACKLIST.has(text)) return false;
+				if (/^[^\p{L}\p{N}]+$/u.test(text)) return false;
+				return true;
+			}
 			function getUntaggedWordTexts() {
 				const editor = $("#editor");
 				if (!editor) return [];
@@ -7926,10 +7947,40 @@
 				const rx = /\S+/g;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
-					const isTagged = taggedRanges.some((tr) => tr.start <= m.index && tr.end >= m.index + m[0].length);
-					if (!isTagged) words.push(m[0]);
+					if (isValidWord(m[0])) {
+						const isTagged = taggedRanges.some((tr) => tr.start <= m.index && tr.end >= m.index + m[0].length);
+						if (!isTagged) words.push(m[0]);
+					}
 				}
 				return words;
+			}
+			function isSlotGovernmentOwned(slotIndex) {
+				const editor = $("#editor");
+				if (!editor) return false;
+				const wordTexts = getUntaggedWordTexts();
+				if (slotIndex >= wordTexts.length) return true;
+				const fullText = editor.textContent || "";
+				const taggedRanges = [];
+				editor.querySelectorAll(".m-tag").forEach((tag) => {
+					taggedRanges.push(getCharOffsets(editor, tag));
+				});
+				const allWords = [];
+				const rx = /\S+/g;
+				let m;
+				while ((m = rx.exec(fullText)) !== null) {
+					if (isValidWord(m[0])) {
+						allWords.push({ start: m.index, end: m.index + m[0].length });
+					}
+				}
+				let uIdx = 0;
+				for (const w of allWords) {
+					const tagged = taggedRanges.some((tr) => tr.start <= w.start && tr.end >= w.end);
+					if (!tagged) {
+						if (uIdx === slotIndex) return false;
+						uIdx++;
+					}
+				}
+				return true;
 			}
 			function getWordAgeMultiplier(slot) {
 				if (!slot || !slot.firstOwnedStep) return 1.0;
@@ -8128,7 +8179,6 @@
 						return;
 					}
 
-
 					let wordAssetValue = 0;
 					if (state.wordSlots) {
 						state.wordSlots.forEach((slot) => {
@@ -8159,7 +8209,6 @@
 					const revenueValue = ((c.revenue || 0) * 1.0) / 1000;
 
 					const fundamentalValue = Math.max(base * 0.3, Math.min(cap * 0.8, bookValue * 0.3 + earningsValue * 0.3 + revenueValue * 0.15 + base * 0.25));
-
 
 					if (c._orderBook && c._orderBook.tradesThisStep > 0) {
 						c.marketCap = c._sharePrice * c.sharesOutstanding;
@@ -8289,7 +8338,6 @@
 					c.stockPrice = c.marketCap;
 				});
 			}
-
 
 			function applyShortSellingPressure() {
 				if (!state || !state.companies) return;
@@ -8834,6 +8882,7 @@
 					const si = Math.floor(Math.random() * state.wordSlots.length);
 					const slot = state.wordSlots[si];
 					if (!slot || !slot.letterShares || slot.letterShares.length < 1) continue;
+					if (isSlotGovernmentOwned(si)) continue; // ADD THIS
 
 					const letterVal = getLetterValue(slot);
 					if (letterVal <= 0) continue;
@@ -8993,6 +9042,7 @@
 				for (let si = 0; si < state.wordSlots.length && trades < maxTrades; si++) {
 					const slot = state.wordSlots[si];
 					if (!slot || !slot.letterShares || slot.letterShares.length < 2) continue;
+					if (isSlotGovernmentOwned(si)) continue; // ADD THIS
 
 					const ownership = {};
 					slot.letterShares.forEach((ls, li) => {
@@ -9415,7 +9465,7 @@
 				for (let si = 0; si < state.wordSlots.length; si++) {
 					const slot = state.wordSlots[si];
 					if (!slot || !slot.letterShares) continue;
-
+					if (isSlotGovernmentOwned(si)) continue; // ADD THIS
 					for (let li = 0; li < slot.letterShares.length; li++) {
 						const ls = slot.letterShares[li];
 						if (ls.ownerId === null) continue;
@@ -9682,12 +9732,14 @@
 				const rx = /\S+/g;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
-					allWords.push({
-						start: m.index,
-						end: m.index + m[0].length,
-						text: m[0],
-						globalIdx: allWords.length,
-					});
+					if (isValidWord(m[0])) {
+						allWords.push({
+							start: m.index,
+							end: m.index + m[0].length,
+							text: m[0],
+							globalIdx: allWords.length,
+						});
+					}
 				}
 
 				const taggedRanges = [];
@@ -9759,9 +9811,12 @@
 						const alreadyCounted = entry.letters.some((l) => l.slotIndex === slotIdx && l.letterIndex === charPos);
 						if (alreadyCounted) continue;
 
+						const letterChar = w.text[charPos] || "?";
+						if (letterChar.trim() === "" || /^[^\w\s]+$/.test(letterChar)) {
+							continue; // Skip invalid letters
+						}
 						entry.letters.push({
 							wordText: wordText,
-							letterChar: w.text[charPos] || "?",
 							letterIndex: charPos,
 							absolutePos: absPos,
 							slotIndex: slotIdx,

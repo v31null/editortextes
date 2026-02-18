@@ -226,7 +226,16 @@
 				font-family: "JetBrains Mono", monospace;
 				font-size: 12px;
 			}
-
+.m-note {
+    color: var(--text-muted);
+    font-style: italic;
+    background: #f1f1f1;
+    border-radius: 3px;
+    padding: 0 4px;
+    opacity: 0.7;
+}
+/* Ensure notes don't get the "Ministry Tag" hover effects if you want them truly neutral */
+.m-note::after { content: "DRAFT"; background: #888 !important; }
 			.mdot {
 				display: inline-block;
 				width: 8px;
@@ -368,18 +377,21 @@
 			}
 
 			.toolbar {
-				height: var(--toolbar-height);
 				background: #fff;
 				border-bottom: 1px solid var(--border);
 				display: flex;
+				flex-wrap: wrap;
 				align-items: center;
-				padding: 0 12px;
+				padding: 3px 12px;
 				gap: 2px;
+				row-gap: 2px;
 				flex-shrink: 0;
-				overflow-x: auto;
 			}
-			.toolbar::-webkit-scrollbar {
-				display: none;
+			.toolbar-row-break {
+				flex-basis: 100%;
+				height: 1px;
+				background: var(--border-light);
+				margin: 2px 0;
 			}
 
 			.tbtn {
@@ -575,7 +587,17 @@
 				background: var(--motc-bg);
 				border-bottom: 2px solid var(--motc);
 			}
+			/* Styling for Internal Notes */
+			.m-tag[data-ministry="MoIA"] {
+				background: #f1f5f9 ; /* Light gray */
+				border-bottom: 2px dashed #94a3b8 ;
+				font-style: italic;
+			}
 
+			.m-tag[data-ministry="MoIA"]::after {
+				background: #94a3b8;
+				color: #fff;
+			}
 			.m-tag::after {
 				content: attr(data-ministry);
 				position: absolute;
@@ -1112,6 +1134,71 @@
 				animation: pulse 1s infinite;
 			}
 
+			#editor hr.scene-break {
+				border: none;
+				border-top: 2px solid #d0d4da;
+				margin: 20px 0;
+				width: 100%;
+				display: block;
+			}
+
+			.tbtn-color {
+				padding: 5px 8px;
+				border: none;
+				background: transparent;
+				border-radius: 4px;
+				font-size: 11px;
+				font-weight: 700;
+				cursor: pointer;
+				color: var(--text-secondary);
+				white-space: nowrap;
+				transition: all 0.12s;
+				font-family: "Inter", sans-serif;
+				display: flex;
+				align-items: center;
+				gap: 3px;
+				flex-direction: column;
+				line-height: 1;
+				padding-bottom: 3px;
+			}
+			.tbtn-color:hover {
+				background: var(--bg-hover);
+				color: var(--text);
+			}
+			.tbtn-color .color-bar {
+				height: 3px;
+				width: 14px;
+				border-radius: 1px;
+				margin-top: 1px;
+			}
+			.tbtn-color input[type="color"] {
+				position: absolute;
+				opacity: 0;
+				width: 0;
+				height: 0;
+				pointer-events: none;
+			}
+
+			.tselect {
+				padding: 3px 5px;
+				border: 1px solid var(--border);
+				border-radius: 4px;
+				font-size: 11px;
+				font-family: "Inter", sans-serif;
+				font-weight: 500;
+				color: var(--text-secondary);
+				background: transparent;
+				cursor: pointer;
+				outline: none;
+				height: 26px;
+			}
+			.tselect:hover,
+			.tselect:focus {
+				border-color: var(--border-dark);
+				color: var(--text);
+				background: var(--bg-hover);
+			}
+
 			@media print {
 				.panel,
 				.toolbar,
@@ -1603,7 +1690,77 @@
 				cursor: pointer;
 				user-select: none;
 			}
+			.select2-container {
+				display: inline-block;
+				vertical-align: middle;
+			}
+			.select2-container--default .select2-selection--single {
+				height: 26px;
+				border: 1px solid var(--border);
+				border-radius: 4px;
+				background: transparent;
+				font-family: "Inter", sans-serif;
+				font-size: 11px;
+				font-weight: 500;
+				color: var(--text-secondary);
+				display: flex;
+				align-items: center;
+				cursor: pointer;
+			}
+			.select2-container--default .select2-selection--single:hover {
+				border-color: var(--border-dark);
+				background: var(--bg-hover);
+				color: var(--text);
+			}
+			.select2-container--default .select2-selection--single .select2-selection__rendered {
+				line-height: 26px;
+				padding-left: 8px;
+				padding-right: 20px;
+				color: var(--text-secondary);
+				font-size: 11px;
+			}
+			.select2-container--default .select2-selection--single .select2-selection__arrow {
+				height: 24px;
+				top: 1px;
+			}
+			.select2-dropdown {
+				border: 1px solid var(--border);
+				border-radius: 4px;
+				box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+				font-family: "Inter", sans-serif;
+				font-size: 12px;
+				z-index: 99999;
+			}
+			.select2-container--default .select2-search--dropdown .select2-search__field {
+				border: 1px solid var(--border);
+				border-radius: 3px;
+				font-family: "Inter", sans-serif;
+				font-size: 11px;
+				padding: 4px 8px;
+				outline: none;
+			}
+			.select2-container--default .select2-results__option--highlighted[aria-selected] {
+				background: var(--accent);
+				color: #fff;
+			}
+			.select2-results__option {
+				white-space: nowrap !important;
+			}
+
+			/* Allow the dropdown container to expand horizontally */
+			.select2-container--open .select2-dropdown {
+				width: auto !important;
+				min-width: 160px; /* Minimum width so it's not too tiny */
+				max-width: 500px; /* Optional: prevents it from filling the whole screen */
+				box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+			}
 		</style>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" />
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+		<script>
+			jQuery.noConflict();
+		</script>
 	</head>
 	<body>
 		<div id="setupOverlay">
@@ -1666,12 +1823,77 @@
 
 			<div class="toolbar">
 				<span class="toolbar-section-label">FORMAT</span>
-				<button class="tbtn" onclick="execFormat('bold')" title="Bold"><b>B</b></button>
-				<button class="tbtn" onclick="execFormat('italic')" title="Italic"><i>I</i></button>
-				<button class="tbtn" onclick="execFormat('underline')" title="Underline"><u>U</u></button>
+				<button class="tbtn" id="tbtnBold" onclick="execFormat('bold')" title="Bold"><b>B</b></button>
+				<button class="tbtn" id="tbtnItalic" onclick="execFormat('italic')" title="Italic"><i>I</i></button>
+				<button class="tbtn" id="tbtnUnderline" onclick="execFormat('underline')" title="Underline"><u>U</u></button>
+				<button class="tbtn" id="tbtnStrike" onclick="execFormat('strikeThrough')" title="Strikethrough"><s>S</s></button>
+				<button class="tbtn" id="tbtnSup" onclick="execFormat('superscript')" title="Superscript">x<sup>2</sup></button>
+				<button class="tbtn" id="tbtnSub" onclick="execFormat('subscript')" title="Subscript">x<sub>2</sub></button>
+				<button class="tbtn" onclick="execFormat('removeFormat')" title="Clear all formatting">✕ Clear</button>
 				<div class="tsep"></div>
+				<span class="toolbar-section-label">INSERT</span>
 				<button class="tbtn" onclick="insertGuillemets()" title="Insert dialogue guillemets «»">« »</button>
 				<button class="tbtn" onclick="insertSceneBreak()" title="Insert scene break">— Break —</button>
+				<div class="tsep"></div>
+				<span class="toolbar-section-label">ALIGN</span>
+				<button class="tbtn" id="tbtnAlignL" onclick="applyAlign('justifyLeft')" title="Align left">≡L</button>
+				<button class="tbtn" id="tbtnAlignC" onclick="applyAlign('justifyCenter')" title="Align center">≡C</button>
+				<button class="tbtn" id="tbtnAlignR" onclick="applyAlign('justifyRight')" title="Align right">≡R</button>
+				<button class="tbtn" id="tbtnAlignJ" onclick="applyAlign('justifyFull')" title="Justify">≡J</button>
+				<div class="tsep"></div>
+				<button class="tbtn" onclick="applyJustifyLast('left')" title="Justify — last line left">J/L</button>
+				<button class="tbtn" onclick="applyJustifyLast('center')" title="Justify — last line center">J/C</button>
+				<button class="tbtn" onclick="applyJustifyLast('right')" title="Justify — last line right">J/R</button>
+				<button class="tbtn" onclick="applyJustifyLast('justify')" title="Justify — last line justify">J/J</button>
+				<button class="tbtn" onclick="applyJustifyLast('end')" title="Justify — last line end">J/End</button>
+				<div class="tsep"></div>
+				<span class="toolbar-section-label">LISTS</span>
+				<button class="tbtn" onclick="execFormat('insertUnorderedList')" title="Bullet list">• List</button>
+				<button class="tbtn" onclick="execFormat('insertOrderedList')" title="Numbered list">1. List</button>
+				<div class="tsep"></div>
+				<span class="toolbar-section-label">INDENT</span>
+				<button class="tbtn" onclick="execFormat('outdent')" title="Decrease indent">⇤</button>
+				<button class="tbtn" onclick="execFormat('indent')" title="Increase indent">⇥</button>
+
+				<div class="toolbar-row-break"></div>
+
+				<span class="toolbar-section-label">FONT</span>
+				<select class="tselect" id="fontSizeSelect" onchange="applyFontSize(this.value)" title="Font size">
+					<option value="">Size</option>
+					<option value="8px">8</option>
+					<option value="9px">9</option>
+					<option value="10px">10</option>
+					<option value="11px">11</option>
+					<option value="12px">12</option>
+					<option value="13px">13</option>
+					<option value="14px">14</option>
+					<option value="14.5px" selected>14.5</option>
+					<option value="16px">16</option>
+					<option value="18px">18</option>
+					<option value="20px">20</option>
+					<option value="24px">24</option>
+					<option value="28px">28</option>
+					<option value="32px">32</option>
+					<option value="36px">36</option>
+					<option value="48px">48</option>
+					<option value="60px">60</option>
+					<option value="72px">72</option>
+				</select>
+				<select class="tselect" id="fontFamilySelect" title="Font family" style="width: 140px">
+					<option value="">Family</option>
+				</select>
+				<div class="tsep"></div>
+				<span class="toolbar-section-label">COLOR</span>
+				<button class="tbtn-color" onclick="triggerColorPicker('fgColor')" title="Text color">
+					<span>A</span>
+					<span class="color-bar" id="fgColorBar" style="background: #1a1d23"></span>
+					<input type="color" id="fgColor" value="#1a1d23" onchange="applyTextColor(this.value)" />
+				</button>
+				<button class="tbtn-color" onclick="triggerColorPicker('bgColor')" title="Highlight color">
+					<span style="background: #ffff00; padding: 0 3px; border-radius: 1px">A</span>
+					<span class="color-bar" id="bgColorBar" style="background: #ffff00"></span>
+					<input type="color" id="bgColor" value="#ffff00" onchange="applyHighlightColor(this.value)" />
+				</button>
 				<div class="tsep"></div>
 				<span class="toolbar-section-label">MINISTRIES</span>
 				<button class="tbtn" onclick="tagSelection('MoD')" title="Dialogue"><span class="ministry-dot" style="background: var(--mod)"></span>MoD</button>
@@ -1682,6 +1904,9 @@
 				<button class="tbtn" onclick="tagSelection('MoKA')" title="Kinetic Affairs"><span class="ministry-dot" style="background: var(--moka)"></span>MoKA</button>
 				<button class="tbtn" onclick="tagSelection('MoFA')" title="Fast Affairs"><span class="ministry-dot" style="background: var(--mofa)"></span>MoFA</button>
 				<button class="tbtn" onclick="tagSelection('MoTC')" title="Temporal Coordination"><span class="ministry-dot" style="background: var(--motc)"></span>MoTC</button>
+				<button class="tbtn" onclick="tagSelection('MoIA')" title="Internal Note">
+    <span class="ministry-dot" style="background: #ccc"></span> MoIA
+</button>
 				<div class="tsep"></div>
 				<button class="tbtn" onclick="removeTag()" title="Remove ministry tag from selection">✕ Untag</button>
 				<div class="tsep"></div>
@@ -1852,6 +2077,7 @@
 			<div class="ctx-item" onclick="tagSelection('MoKA')"><span class="ctx-dot" style="background: var(--moka)"></span>Kinetic Affairs<span class="ctx-key">Ctrl+6</span></div>
 			<div class="ctx-item" onclick="tagSelection('MoFA')"><span class="ctx-dot" style="background: var(--mofa)"></span>Fast Affairs<span class="ctx-key">Ctrl+7</span></div>
 			<div class="ctx-item" onclick="tagSelection('MoTC')"><span class="ctx-dot" style="background: var(--motc)"></span>Temporal Coord.<span class="ctx-key">Ctrl+8</span></div>
+			<div class="ctx-item" onclick="tagSelection('MoTC')"><span class="ctx-dot" style="background: var(--motc)"></span>Non-Ind. Expend.<span class="ctx-key">Ctrl+9</span></div>
 			<div class="ctx-sep"></div>
 			<div class="ctx-item" onclick="removeTag()">✕ Remove Tag</div>
 		</div>
@@ -1862,7 +2088,7 @@
 			const $ = (s) => document.querySelector(s);
 			const $$ = (s) => document.querySelectorAll(s);
 
-			const RON_RATE = 4.97;
+			const RON_RATE = 5.09;
 			const GDP_INCOME_RATIO = 0.43;
 			const DEFICIT_CEILING = 0.06;
 			const FISCAL_DAYS = 365;
@@ -1870,17 +2096,18 @@
 			const CONTENT_SECONDS = 1230;
 
 			const MINISTRIES = [
-				{ code: "MoD", name: "Dialogue", color: "#2563eb", floor: 0.34, ceil: 0.5, secPerWord: 0.3 },
-				{ code: "MoLE", name: "Lore & Exposition", color: "#7c3aed", floor: 0.08, ceil: 0.28, secPerWord: 0.65 },
+				{ code: "MoD", name: "Dialogue", color: "#2563eb", floor: 0.22, ceil: 0.55, secPerWord: 0.3 },
+				{ code: "MoLE", name: "Lore & Exposition", color: "#7c3aed", floor: 0.08, ceil: 0.55, secPerWord: 0.65 },
 				{ code: "MoDiA", name: "Direction & Attrib.", color: "#ea580c", floor: 0.07, ceil: 0.17, secPerWord: 0.8 },
 				{ code: "MoIE", name: "Interior & Emotion", color: "#db2777", floor: 0.05, ceil: 0.17, secPerWord: 0.8 },
 				{ code: "MoSA", name: "Scenic Architecture", color: "#16a34a", floor: 0.04, ceil: 0.14, secPerWord: 1.2 },
 				{ code: "MoKA", name: "Kinetic Affairs", color: "#dc2626", floor: 0.005, ceil: 0.11, secPerWord: 1.5 },
-				{ code: "MoFA", name: "Fast Affairs", color: "#a0ffa3", floor: 0.005, ceil: 0.05, secPerWord: 0.22 },
+				{ code: "MoFA", name: "Fast Affairs", color: "#a0ffa3", floor: 0.05, ceil: 0.10, secPerWord: 0.22 },
 				{ code: "MoTC", name: "Temporal Coord.", color: "#64748b", floor: 0.005, ceil: 0.05, secPerWord: 0.15 },
+				{ code: "MoIA", name: "Internal Affairs", color: "#94a3b8", floor: 0.002, ceil: 0.005, secPerWord: 0 },
 			];
 
-			const BASE_SHARES = [0.42, 0.18, 0.12, 0.11, 0.09, 0.055, 0.025, 0.02];
+			const BASE_SHARES = [0.42, 0.18, 0.12, 0.11, 0.09, 0.055, 0.025, 0.02, 0.0];
 			const GREEK = ["α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ", "λ", "μ", "ν", "ξ", "ο", "π", "ρ", "σ", "τ", "υ", "φ", "χ", "ψ", "ω"];
 			const BRACKETS = [
 				{ name: "Sole Proprietor", code: "SP", countR: [350, 1100], capR: [1, 3], costR: [0.7, 1.35], revR: [0.01, 0.5], debtR: [0, 0.3], empR: [1, 5], covR: [0.1, 2], resistP: 0 },
@@ -1945,7 +2172,7 @@
 				IC: [2.2, 3.8],
 			};
 			const ANTITRUST_SET = new Set(["MN", "IC"]);
-			const UNION_MAX = 200;
+			const UNION_MAX = 700;
 			const UNION_COLLAPSE_PER_MEMBER = 0.0018;
 			const UNION_TYPE_NAME = {
 				SP: "Cooperative",
@@ -2941,18 +3168,26 @@
 				ctx.stroke();
 			}
 			function countAllWords() {
-				const editor = $("#editor");
-				if (!editor) return 0;
-				const text = editor.innerText || "";
-				return text
-					.trim()
-					.split(/\s+/)
-					.filter((w) => isValidWord(w)).length;
-			}
+    const editor = $("#editor");
+    if (!editor) return 0;
 
+    // Create a clone to manipulate so we don't mess up the actual editor
+    const clone = editor.cloneNode(true);
+    
+    // REMOVE all MoIA tags from the count entirely
+    clone.querySelectorAll('.m-tag[data-ministry="MoIA"]').forEach(el => el.remove());
+
+    const text = clone.innerText || "";
+    return text
+        .trim()
+        .split(/\s+/)
+        .filter((w) => isValidWord(w)).length;
+}
 			function countAllChars() {
 				const editor = $("#editor");
 				if (!editor) return 0;
+    const clone = editor.cloneNode(true);
+    clone.querySelectorAll('.m-tag[data-ministry="MoIA"]').forEach(el => el.remove());
 				return (editor.innerText || "").length;
 			}
 			function countWordsInElement(el) {
@@ -2974,14 +3209,18 @@
 				const editor = $("#editor");
 				if (!editor) return;
 
-				editor.querySelectorAll(".m-tag").forEach((tag) => {
-					const ministry = tag.getAttribute("data-ministry");
-					if (ministry && state.spending.hasOwnProperty(ministry)) {
-						const wc = countWordsInElement(tag);
-						state.ministryWords[ministry] += wc;
-						state.spending[ministry] += (wc * state.eco.currentRate) / 1000;
-					}
-				});
+    editor.querySelectorAll(".m-tag").forEach((tag) => {
+        const ministry = tag.getAttribute("data-ministry");
+        
+        // COMPLETELY SKIP MoIA - No money, no word count, no screen time
+        if (ministry === "MoIA") return; 
+
+        if (ministry && state.spending.hasOwnProperty(ministry)) {
+            const wc = countWordsInElement(tag);
+            state.ministryWords[ministry] += wc;
+            state.spending[ministry] += (wc * state.eco.currentRate) / 1000;
+        }
+    });
 
 				distributeUntaggedWords();
 				scheduleCompanyUpdate();
@@ -5519,7 +5758,32 @@
 				updatePanel();
 				state.editorHTML = editor.innerHTML;
 			}
+function handleMinistryTrigger(ministryCode) {
+    const sel = window.getSelection();
+    const editor = $("#editor");
 
+    // 1. If text is highlighted: Tag it and enter sticky mode for that ministry
+    if (sel && !sel.isCollapsed && editor.contains(sel.anchorNode)) {
+        tagSelection(ministryCode); // Apply the tag to the highlight
+        state.ministryMode = ministryCode; // Set sticky mode for continued typing
+        showMinistryModeIndicator(state.ministryMode);
+    } 
+    // 2. If just a cursor: Toggle sticky mode
+    else {
+        if (state.ministryMode === ministryCode) {
+            // Already in this mode? Exit it.
+            exitCurrentTag(); 
+        } else {
+            // Not in this mode? Enter it.
+            state.ministryMode = ministryCode;
+            showMinistryModeIndicator(state.ministryMode);
+            editor.focus();
+        }
+    }
+    
+    // Hide context menu in case it was open
+    hideCtxMenu();
+}
 			function buildSegmentsWithExclusions(totalLen, existingTags, selStart, selEnd, newMinistry, excluded) {
 				const map = new Array(totalLen).fill(null);
 
@@ -5932,7 +6196,242 @@
 			}
 
 			function insertSceneBreak() {
-				document.execCommand("insertHTML", false, '<div style="text-align:center;color:#aaa;margin:16px 0;letter-spacing:4px;font-size:12px">— — —</div>');
+				document.execCommand("insertHTML", false, '<br><hr class="scene-break"><br>');
+				$("#editor").focus();
+			}
+
+			function applyAlign(cmd) {
+				document.execCommand(cmd, false, null);
+				updateAlignButtons();
+				$("#editor").focus();
+			}
+
+			function updateAlignButtons() {
+				const cmds = ["justifyLeft", "justifyCenter", "justifyRight", "justifyFull"];
+				const ids = ["tbtnAlignL", "tbtnAlignC", "tbtnAlignR", "tbtnAlignJ"];
+				cmds.forEach((cmd, i) => {
+					const el = document.getElementById(ids[i]);
+					if (el) el.classList.toggle("active", document.queryCommandState(cmd));
+				});
+			}
+
+			function applyJustifyLast(lastValue) {
+				document.execCommand("justifyFull", false, null);
+				const sel = window.getSelection();
+				if (!sel || sel.rangeCount === 0) return;
+				const range = sel.getRangeAt(0);
+				const editor = document.getElementById("editor");
+				const walker = document.createTreeWalker(editor, NodeFilter.SHOW_ELEMENT, null, false);
+				const blockTags = new Set(["P", "DIV", "H1", "H2", "H3", "H4", "H5", "H6", "LI", "BLOCKQUOTE", "TD", "TH"]);
+				const blocks = new Set();
+				let node;
+				while ((node = walker.nextNode())) {
+					if (blockTags.has(node.tagName) && range.intersectsNode(node)) {
+						blocks.add(node);
+					}
+				}
+				if (blocks.size === 0) {
+					let container = range.commonAncestorContainer;
+					if (container.nodeType === 3) container = container.parentElement;
+					while (container && container !== editor) {
+						if (blockTags.has(container.tagName)) {
+							blocks.add(container);
+							break;
+						}
+						container = container.parentElement;
+					}
+					if (blocks.size === 0 && container === editor) blocks.add(editor);
+				}
+				blocks.forEach((el) => {
+					el.style.textAlignLast = lastValue;
+				});
+				updateAlignButtons();
+				$("#editor").focus();
+			}
+
+			function applyFontSize(size) {
+				if (!size) return;
+				const sel = window.getSelection();
+				if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+					document.getElementById("fontSizeSelect").value = "";
+					return;
+				}
+				document.execCommand("fontSize", false, "7");
+				const marked = document.querySelectorAll('#editor font[size="7"]');
+				marked.forEach((el) => {
+					const span = document.createElement("span");
+					span.style.fontSize = size;
+					while (el.firstChild) span.appendChild(el.firstChild);
+					el.parentNode.replaceChild(span, el);
+				});
+				document.getElementById("fontSizeSelect").value = "";
+				$("#editor").focus();
+			}
+
+			function applyFontFamily(font) {
+				if (!font) return;
+				document.execCommand("fontName", false, font);
+				jQuery("#fontFamilySelect").val("").trigger("change.select2");
+				document.getElementById("editor").focus();
+			}
+
+			const FONT_FALLBACKS = [
+				{ name: "Spectral", value: "Spectral, Georgia, serif" },
+				{ name: "Inter", value: "Inter, sans-serif" },
+				{ name: "JetBrains Mono", value: "JetBrains Mono, monospace" },
+				{ name: "Georgia", value: "Georgia, serif" },
+				{ name: "Times New Roman", value: "Times New Roman, serif" },
+				{ name: "Arial", value: "Arial, sans-serif" },
+				{ name: "Helvetica", value: "Helvetica, sans-serif" },
+				{ name: "Courier New", value: "Courier New, monospace" },
+				{ name: "Verdana", value: "Verdana, sans-serif" },
+				{ name: "Tahoma", value: "Tahoma, sans-serif" },
+				{ name: "Trebuchet MS", value: "Trebuchet MS, sans-serif" },
+				{ name: "Garamond", value: "Garamond, serif" },
+				{ name: "Palatino", value: "Palatino, serif" },
+				{ name: "Comic Sans MS", value: "Comic Sans MS, cursive" },
+				{ name: "Impact", value: "Impact, sans-serif" },
+				{ name: "Consolas", value: "Consolas, monospace" },
+				{ name: "Calibri", value: "Calibri, sans-serif" },
+				{ name: "Cambria", value: "Cambria, serif" },
+				{ name: "Segoe UI", value: "Segoe UI, sans-serif" },
+				{ name: "Franklin Gothic", value: "Franklin Gothic Medium, sans-serif" },
+			];
+
+			// 2. The formatting function that creates the font previews
+			function formatFontOption(state) {
+				if (!state.id) return state.text;
+				// Create a span with the font-family applied so you can see the preview
+				return jQuery('<span style="font-family: ' + state.id + '; font-size: 14px;">' + state.text + "</span>");
+			}
+			function refreshFontSelect(fontList) {
+				const $sel = jQuery("#fontFamilySelect");
+
+				$sel.empty().append('<option value="">Family</option>');
+				fontList.forEach((f) => {
+					$sel.append(new Option(f.name, f.value));
+				});
+
+				if ($sel.data("select2")) {
+					$sel.select2("destroy");
+				}
+
+				$sel.select2({
+					placeholder: "Search Fonts...",
+					allowClear: true,
+					width: "140px", // This keeps the box in your toolbar 140px
+					dropdownAutoWidth: true, // This allows the dropdown to be wider
+					templateResult: formatFontOption,
+					templateSelection: formatFontOption,
+				});
+			}
+
+			// 4. The function that asks Windows for the fonts
+			async function unlockSystemFonts() {
+				const btn = document.getElementById("fontUnlockBtn");
+
+				if (!("queryLocalFonts" in window)) {
+					alert("Browser restricted: Local Font API is only available in Chrome/Edge.");
+					return;
+				}
+
+				if (!window.isSecureContext) {
+					alert("Security Error: System fonts can only be accessed via HTTPS or Localhost (127.0.0.1). \n\nOpening the file directly (file://) is blocked by the browser.");
+					return;
+				}
+
+				try {
+					btn.textContent = "⏳...";
+					const localFonts = await window.queryLocalFonts();
+
+					const seen = new Set();
+					const fontList = [];
+
+					localFonts.forEach((f) => {
+						if (!seen.has(f.family)) {
+							seen.add(f.family);
+							fontList.push({ name: f.family, value: f.family });
+						}
+					});
+
+					fontList.sort((a, b) => a.name.localeCompare(b.name));
+
+					// Update the dropdown with the new list
+					refreshFontSelect(fontList);
+
+					btn.textContent = "🔓";
+					btn.style.color = "var(--success)";
+					btn.title = "System fonts unlocked";
+				} catch (err) {
+					console.error(err);
+					btn.textContent = "🔒";
+					alert("Access Denied: " + err.message);
+				}
+			}
+
+			// --- INITIALIZATION ---
+
+			// Initialize with fallbacks immediately
+			jQuery(document).ready(function () {
+				refreshFontSelect(FONT_FALLBACKS);
+
+				// Create the Unlock Button if it doesn't exist
+				if (!document.getElementById("fontUnlockBtn")) {
+					const unlockBtn = document.createElement("button");
+					unlockBtn.id = "fontUnlockBtn";
+					unlockBtn.innerHTML = "🔒";
+					unlockBtn.className = "tbtn";
+					unlockBtn.style.marginLeft = "4px";
+					unlockBtn.title = "Unlock Windows System Fonts";
+					unlockBtn.onclick = unlockSystemFonts;
+
+					// Insert it right after the Font Select
+					const selectEl = document.getElementById("fontFamilySelect");
+					selectEl.parentNode.insertBefore(unlockBtn, selectEl.nextSibling);
+				}
+
+				// Handle font changes
+				jQuery("#fontFamilySelect").on("change", function () {
+					const font = jQuery(this).val();
+					if (font) {
+						document.execCommand("fontName", false, font);
+						document.getElementById("editor").focus();
+					}
+				});
+			});
+			let _savedSelForColor = null;
+
+			function triggerColorPicker(id) {
+				const sel = window.getSelection();
+				if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+					_savedSelForColor = sel.getRangeAt(0).cloneRange();
+				} else {
+					_savedSelForColor = null;
+				}
+				document.getElementById(id).click();
+			}
+
+			function applyTextColor(value) {
+				document.getElementById("fgColorBar").style.background = value;
+				const sel = window.getSelection();
+				if (_savedSelForColor) {
+					sel.removeAllRanges();
+					sel.addRange(_savedSelForColor);
+				}
+				if (!sel || sel.isCollapsed) return;
+				document.execCommand("foreColor", false, value);
+				$("#editor").focus();
+			}
+
+			function applyHighlightColor(value) {
+				document.getElementById("bgColorBar").style.background = value;
+				const sel = window.getSelection();
+				if (_savedSelForColor) {
+					sel.removeAllRanges();
+					sel.addRange(_savedSelForColor);
+				}
+				if (!sel || sel.isCollapsed) return;
+				document.execCommand("hiliteColor", false, value) || document.execCommand("backColor", false, value);
 				$("#editor").focus();
 			}
 			function saveSelection(containerEl) {
@@ -6543,6 +7042,7 @@
 							6: "MoKA",
 							7: "MoFA",
 							8: "MoTC",
+							9: "MoIA",
 						};
 
 						if (ministryKeys[e.key]) {
@@ -6607,7 +7107,7 @@
 				}
 
 				if (ministry) {
-					indicator.textContent = `✍ ${ministry} Mode`;
+					indicator.textContent = `${ministry}`;
 					indicator.style.display = "block";
 				} else {
 					indicator.style.display = "none";
@@ -6930,8 +7430,9 @@
 				editor.addEventListener("input", (e) => {
 					if (isProcessing) return;
 
-					simulateStep();
-
+    if (!isCursorInMoIA()) {
+        simulateStep();
+    }
 					const currentWords = countAllWords();
 					const wordDelta = currentWords - lastWordCount;
 
@@ -6958,6 +7459,9 @@
 
 						isProcessing = false;
 					}, 100);
+				});
+				document.addEventListener("selectionchange", () => {
+					updateAlignButtons();
 				});
 				editor.addEventListener("contextmenu", showCtxMenu);
 				document.addEventListener("click", (e) => {
@@ -8042,6 +8546,17 @@
 				}
 				return words;
 			}
+			function isCursorInMoIA() {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return false;
+    
+    let node = sel.anchorNode;
+    // If we are at a text node, check the parent element
+    if (node.nodeType === 3) node = node.parentElement;
+    
+    const tag = node.closest(".m-tag");
+    return tag && tag.getAttribute("data-ministry") === "MoIA";
+}
 			function isSlotGovernmentOwned(slotIndex) {
 				const editor = $("#editor");
 				if (!editor) return false;

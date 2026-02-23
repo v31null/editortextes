@@ -226,16 +226,18 @@
 				font-family: "JetBrains Mono", monospace;
 				font-size: 12px;
 			}
-.m-note {
-    color: var(--text-muted);
-    font-style: italic;
-    background: #f1f1f1;
-    border-radius: 3px;
-    padding: 0 4px;
-    opacity: 0.7;
-}
-/* Ensure notes don't get the "Ministry Tag" hover effects if you want them truly neutral */
-.m-note::after { content: "DRAFT"; background: #888 !important; }
+			.m-note {
+				color: var(--text-muted);
+				font-style: italic;
+				background: #f1f1f1;
+				border-radius: 3px;
+				padding: 0 4px;
+				opacity: 0.7;
+			}
+			.m-note::after {
+				content: "DRAFT";
+				background: #888 !important;
+			}
 			.mdot {
 				display: inline-block;
 				width: 8px;
@@ -536,7 +538,7 @@
 			}
 
 			#editor:empty::before {
-				content: "Begin writing your episode script...\A\AText between « » is automatically tagged as Dialogue.\ASelect any text and click a Ministry button to assign it.\A\ACtrl+S to save. Your fiscal year has begun.";
+				content: "Type to type.";
 				white-space: pre-wrap;
 				color: var(--text-faint);
 				font-style: italic;
@@ -587,10 +589,9 @@
 				background: var(--motc-bg);
 				border-bottom: 2px solid var(--motc);
 			}
-			/* Styling for Internal Notes */
 			.m-tag[data-ministry="MoIA"] {
-				background: #f1f5f9 ; /* Light gray */
-				border-bottom: 2px dashed #94a3b8 ;
+				background: #f1f5f9;
+				border-bottom: 2px dashed #94a3b8;
 				font-style: italic;
 			}
 
@@ -1747,11 +1748,10 @@
 				white-space: nowrap !important;
 			}
 
-			/* Allow the dropdown container to expand horizontally */
 			.select2-container--open .select2-dropdown {
 				width: auto !important;
-				min-width: 160px; /* Minimum width so it's not too tiny */
-				max-width: 500px; /* Optional: prevents it from filling the whole screen */
+				min-width: 160px;
+				max-width: 500px;
 				box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 			}
 		</style>
@@ -1904,13 +1904,14 @@
 				<button class="tbtn" onclick="tagSelection('MoKA')" title="Kinetic Affairs"><span class="ministry-dot" style="background: var(--moka)"></span>MoKA</button>
 				<button class="tbtn" onclick="tagSelection('MoFA')" title="Fast Affairs"><span class="ministry-dot" style="background: var(--mofa)"></span>MoFA</button>
 				<button class="tbtn" onclick="tagSelection('MoTC')" title="Temporal Coordination"><span class="ministry-dot" style="background: var(--motc)"></span>MoTC</button>
-				<button class="tbtn" onclick="tagSelection('MoIA')" title="Internal Note">
-    <span class="ministry-dot" style="background: #ccc"></span> MoIA
-</button>
+				<button class="tbtn" onclick="tagSelection('MoIA')" title="Internal Note"><span class="ministry-dot" style="background: #ccc"></span> MoIA</button>
 				<div class="tsep"></div>
 				<button class="tbtn" onclick="removeTag()" title="Remove ministry tag from selection">✕ Untag</button>
 				<div class="tsep"></div>
 				<span class="toolbar-section-label">FILE</span>
+				<button class="tbtn" id="btnToggleAnnotate" onclick="toggleAnnotationMode()" title="Toggle between Plain Text and Annotated Copy">
+					<span id="annotateStatus">Plain Copy</span>
+				</button>
 				<button class="tbtn" onclick="doExport()" title="Export session as JSON">↓ Export</button>
 			</div>
 
@@ -2101,8 +2102,8 @@
 				{ code: "MoDiA", name: "Direction & Attrib.", color: "#ea580c", floor: 0.07, ceil: 0.17, secPerWord: 0.8 },
 				{ code: "MoIE", name: "Interior & Emotion", color: "#db2777", floor: 0.05, ceil: 0.17, secPerWord: 0.8 },
 				{ code: "MoSA", name: "Scenic Architecture", color: "#16a34a", floor: 0.04, ceil: 0.14, secPerWord: 1.2 },
-				{ code: "MoKA", name: "Kinetic Affairs", color: "#dc2626", floor: 0.005, ceil: 0.11, secPerWord: 1.5 },
-				{ code: "MoFA", name: "Fast Affairs", color: "#a0ffa3", floor: 0.05, ceil: 0.10, secPerWord: 0.22 },
+				{ code: "MoKA", name: "Kinetic Affairs", color: "#dc2626", floor: 0.005, ceil: 0.11, secPerWord: 0.6 },
+				{ code: "MoFA", name: "Fast Affairs", color: "#a0ffa3", floor: 0.05, ceil: 0.1, secPerWord: 0.22 },
 				{ code: "MoTC", name: "Temporal Coord.", color: "#64748b", floor: 0.005, ceil: 0.05, secPerWord: 0.15 },
 				{ code: "MoIA", name: "Internal Affairs", color: "#94a3b8", floor: 0.002, ceil: 0.005, secPerWord: 0 },
 			];
@@ -2172,8 +2173,134 @@
 				IC: [2.2, 3.8],
 			};
 			const ANTITRUST_SET = new Set(["MN", "IC"]);
-			const UNION_MAX = 700;
+			const UNION_MAX = 2000;
 			const UNION_COLLAPSE_PER_MEMBER = 0.0018;
+
+			const EU_FUND_TOTAL_RATIO = 0.52;
+			const EU_YEARLY_DECAY_RATE = 0.08;
+			const EU_LEAK_CHANCE_PER_YEAR = 0.35;
+			const EU_LEAK_AMOUNT_RANGE = [0.005, 0.02];
+			const EU_OLAF_THRESHOLD = 0.3;
+			const EU_OLAF_PENALTY_MULT = 3.0;
+			const EU_COFINANCING_EU_SHARE = 0.85;
+			const EU_COFINANCING_NAT_SHARE = 0.15;
+			const EU_GRACE_YEARS = 0;
+			const EU_MFF_TOTAL_YEARS = 7;
+			const EU_MAX_ANNUAL_ABSORPTION = 0.25;
+
+			const EU_MFF_TRANCHES = {
+				2021: 4.5,
+				2022: 4.5,
+				2023: 4.5,
+				2024: 4.5,
+				2025: 4.5,
+				2026: 4.5,
+				2027: 4.5,
+			};
+
+
+			const SENATE_2024 = [
+				{ code: "PSD", name: "Social Democratic Party", color: "#EF3340", seats: 36, coalition: true, euStance: 0.72 },
+				{ code: "AUR", name: "Alliance for the Union of Romanians", color: "#FCB21F", seats: 28, coalition: false, euStance: 0.15 },
+				{ code: "PNL", name: "National Liberal Party", color: "#FDE000", seats: 22, coalition: true, euStance: 0.88 },
+				{ code: "USR", name: "Save Romania Union", color: "#002A59", seats: 19, coalition: true, euStance: 0.95 },
+				{ code: "SOS", name: "S.O.S. Romania", color: "#4DA9DA", seats: 1, coalition: false, euStance: 0.05 },
+				{ code: "POT", name: "Party of Young People", color: "#330099", seats: 5, coalition: false, euStance: 0.3 },
+				{ code: "UDMR", name: "Democratic Alliance of Hungarians", color: "#00833e", seats: 10, coalition: true, euStance: 0.8 },
+				{ code: "IND", name: "Independents", color: "#DCDCDC", seats: 11, coalition: false, euStance: 0.45 },
+			];
+
+			const DEPUTIES_2024 = [
+				{ code: "PSD", name: "Social Democratic Party", color: "#EF3340", seats: 86, coalition: true, euStance: 0.72 },
+				{ code: "AUR", name: "Alliance for the Union of Romanians", color: "#FCB21F", seats: 62, coalition: false, euStance: 0.15 },
+				{ code: "PNL", name: "National Liberal Party", color: "#FDE000", seats: 51, coalition: true, euStance: 0.88 },
+				{ code: "USR", name: "Save Romania Union", color: "#002A59", seats: 40, coalition: true, euStance: 0.95 },
+				{ code: "SOS", name: "S.O.S. Romania", color: "#4DA9DA", seats: 15, coalition: false, euStance: 0.05 },
+				{ code: "POT", name: "Party of Young People", color: "#330099", seats: 14, coalition: false, euStance: 0.3 },
+				{ code: "UDMR", name: "Democratic Alliance of Hungarians", color: "#00833e", seats: 22, coalition: true, euStance: 0.8 },
+				{ code: "MIN", name: "Parties of ethnic minorities", color: "#000000", seats: 18, coalition: true, euStance: 0.7 },
+			];
+
+			const SENATE_2020 = [
+				{ code: "PSD", name: "Social Democratic Party", color: "#EF3340", seats: 46, coalition: true, euStance: 0.72 },
+				{ code: "PNL", name: "National Liberal Party", color: "#FDE000", seats: 37, coalition: true, euStance: 0.88 },
+				{ code: "USR", name: "Save Romania Union", color: "#00AAE7", seats: 22, coalition: false, euStance: 0.95 },
+				{ code: "AUR", name: "Alliance for the Union of Romanians", color: "#FCB21F", seats: 12, coalition: false, euStance: 0.15 },
+				{ code: "UDMR", name: "Democratic Alliance of Hungarians", color: "#00833e", seats: 9, coalition: true, euStance: 0.8 },
+				{ code: "FD", name: "Force of the Right", color: "#08510A", seats: 3, coalition: false, euStance: 0.6 },
+				{ code: "PUSL", name: "Social Liberal Humanist Party", color: "#0066B6", seats: 1, coalition: false, euStance: 0.5 },
+				{ code: "PNR", name: "Romanian Nationhood Party", color: "#F7D117", seats: 1, coalition: false, euStance: 0.25 },
+				{ code: "IND", name: "Independents", color: "#DCDCDC", seats: 5, coalition: false, euStance: 0.45 },
+			];
+
+			const DEPUTIES_2020 = [
+				{ code: "PSD", name: "Social Democratic Party", color: "#EF3340", seats: 104, coalition: true, euStance: 0.72 },
+				{ code: "PNL", name: "National Liberal Party", color: "#FDE000", seats: 80, coalition: true, euStance: 0.88 },
+				{ code: "USR", name: "Save Romania Union", color: "#00AAE7", seats: 44, coalition: false, euStance: 0.95 },
+				{ code: "AUR", name: "Alliance for the Union of Romanians", color: "#FCB21F", seats: 24, coalition: false, euStance: 0.15 },
+				{ code: "UDMR", name: "Democratic Alliance of Hungarians", color: "#00833e", seats: 20, coalition: true, euStance: 0.8 },
+				{ code: "MIN", name: "Parties of ethnic minorities", color: "#000000", seats: 18, coalition: true, euStance: 0.7 },
+				{ code: "FD", name: "Force of the Right", color: "#08510A", seats: 16, coalition: false, euStance: 0.6 },
+				{ code: "REPER", name: "Renewing Romania's European Project", color: "#c40075", seats: 10, coalition: false, euStance: 0.85 },
+				{ code: "PUSL", name: "Social Liberal Humanist Party", color: "#0066B6", seats: 4, coalition: false, euStance: 0.5 },
+				{ code: "PNR", name: "Romanian Nationhood Party", color: "#F7D117", seats: 4, coalition: false, euStance: 0.25 },
+				{ code: "AD", name: "The Right Alternative", color: "#232575", seats: 3, coalition: false, euStance: 0.4 },
+				{ code: "APat", name: "Alliance for the Homeland", color: "#08099F", seats: 1, coalition: false, euStance: 0.2 },
+				{ code: "RoIT", name: "Association of Italians of Romania", color: "#2B3D8C", seats: 1, coalition: false, euStance: 0.75 },
+				{ code: "IND", name: "Independents", color: "#DCDCDC", seats: 1, coalition: false, euStance: 0.45 },
+			];
+
+			const MP_DIALOGUE = {
+				approve_coalition: ["Romania must absorb every available euro for development!", "I vote FOR — these funds are vital to our infrastructure.", "The coalition supports full absorption. It is our duty to the citizens!", "European funds are an historic opportunity we cannot miss.", "As the ruling party, we firmly support using European money.", "Regional development depends on these funds — I vote YES!", "We negotiated this money in Brussels, now we must use it!", "Romania's economy urgently needs these European investments.", "My party supports the absorption of funds without delay.", "I vote in favor — it is our responsibility to European taxpayers.", "These funds will create jobs and modernize Romania.", "We cannot let European money expire due to bureaucracy!", "I support the project — we are investing in our children's future.", "Absorbing EU funds is the government's number one priority.", "Every European leu attracts development and prosperity.", "Romania deserves these funds — we have met all conditionalities!", "The government program mandates maximum absorption — respecting voters' mandate.", "I vote for, on the condition of total transparency in spending.", "Highways, hospitals, schools — all depend on this European money.", "I support the motion — we have no more time to waste on bureaucracy."],
+				approve_opposition: ["Although we are in opposition, European funds are for Romania, not for a party.", "I vote FOR even if the government handles it poorly — the money belongs to Romanians.", "I do not agree with the government, but rejecting the funds would be catastrophic.", "EU funds transcend party politics. I vote YES.", "As responsible opposition, we cannot block money meant for citizens.", "I vote for, but I demand full transparency in how it's spent!", "Even if the government exploits it politically, Romania needs this money.", "We reserve the right to criticize implementation, but we approve the funds.", "My opposition to the cabinet does not mean opposition to development.", "I accept the compromise — I vote for the funds, but we demand an independent audit.", "We cannot punish citizens just to spite the government.", "European funds have no political color — I support them unreservedly.", "I vote YES, but I warn: we will monitor every leu spent!", "Romania cannot afford the luxury of losing European money out of political pride.", "As a responsible MP, I place the national interest above the party."],
+				disagree_coalition: ["I cannot vote for — EU conditionalities limit our sovereignty!", "I am in the coalition, but my conscience compels me to vote AGAINST.", "The funds come with too many constraints — we are not a colony!", "I refuse to vote in favor — the government has no clear implementation plan.", "These funds will increase public debt through co-financing — I vote NO.", "We cannot accept Brussels' dictates just to receive money!", "I vote NO — the project does not sufficiently protect my community's interests.", "I vote against, fully aware of the political consequences — it's a matter of principle.", "The structural reform conditionalities are unacceptable for my voters.", "As a rebel of conscience: NO — Romania must develop on its own."],
+				disagree_opposition: ["I vote AGAINST! These funds are an instrument of Brussels' control!", "Romania does not need money with conditions dictated by foreigners!", "AGAINST — the government will use the funds for its electoral campaign!", "We completely reject submitting national sovereignty for European money!", "EU funds are a trap — they will force destructive reforms upon us!", "I vote NO — better to develop with our own forces than economic colonialism!", "The government must be held accountable! Without these funds, it should resign!", "AGAINST — the conditionalities violate Romania's Constitution, Art. 1, paragraph 1!", "This money comes with obligations that will destroy Romanian agriculture!", "My opposition is firm — Romania is not for sale!", "Our voters sent us to defend sovereignty, not to sell it!", "I vote NO — Romanians can manage without Brussels' tutelage!", "AGAINST — European money is an illusion; we keep the debts, not the benefits!", "We reject this motion — it is an insult to our national dignity!", "We accept no conditions! I vote AGAINST with conviction!", "These funds will be stolen by the same political mafia — I vote NO!", "Romania must negotiate from a position of strength, not submission!", "AGAINST — better dignity without money than money without dignity!", "The government is incapable of managing this money — why approve it?", "A categorical NO — this is a pact with the European devil!"],
+			};
+
+			const MP_ABSTAIN_DIALOGUE = ["I abstain — I do not have enough information about the conditionalities.", "Abstention — I am not convinced by the implementation plan.", "I will not vote for or against — I am waiting for clarifications.", "I abstain out of respect for both positions presented.", "Abstention — I choose not to get involved in this controversial decision.", "I have no mandate from voters on this topic — I abstain.", "I abstain — the proposal has both major advantages and risks.", "Strategic abstention — my party has not made a clear decision."];
+
+			function getSenate(year) {
+				return year <= 2024 ? SENATE_2020 : SENATE_2024;
+			}
+			function getDeputies(year) {
+				return year <= 2024 ? DEPUTIES_2020 : DEPUTIES_2024;
+			}
+			function getSenateMajority(year) {
+				const senate = getSenate(year);
+				const total = senate.reduce((s, p) => s + p.seats, 0);
+				return Math.floor(total / 2) + 1;
+			}
+			function getDeputiesMajority(year) {
+				const deps = getDeputies(year);
+				const total = deps.reduce((s, p) => s + p.seats, 0);
+				return Math.floor(total / 2) + 1;
+			}
+			function getParliament(year) {
+				const senate = getSenate(year);
+				const deputies = getDeputies(year);
+				const merged = {};
+				[...senate, ...deputies].forEach((p) => {
+					if (!merged[p.code]) merged[p.code] = { code: p.code, name: p.name, color: p.color, senateSeats: 0, deputySeats: 0, coalition: p.coalition, euStance: p.euStance };
+					if (senate.includes(p)) merged[p.code].senateSeats += p.seats;
+					if (deputies.includes(p)) merged[p.code].deputySeats += p.seats;
+				});
+				return Object.values(merged);
+			}
+			function getParliamentMajority(year) {
+				return getSenateMajority(year);
+			}
+
+			const JV_SMALL_TIER_MAX = 2000;
+			const JV_SYNERGY_BRACKETS = {
+				SP: 0.85,
+				LB: 0.75,
+				RE: 0.55,
+				NC: 0.35,
+				MN: 0.2,
+				IC: 0.1,
+			};
+			const JV_HETEROGENEITY_PENALTY = 0.12;
+			const JV_STABILITY_FLOOR = 0.1;
 			const UNION_TYPE_NAME = {
 				SP: "Cooperative",
 				LB: "Association",
@@ -2202,7 +2329,38 @@
 				trade: "T",
 				escalation: "E",
 			};
+			const WORD_MATCH_REGEX = /[\p{L}\p{N}]+(?:[-'’][\p{L}\p{N}]+)*/gu;
+
 			const SPAWN_TIERS = ["SP", "LB", "RE"];
+
+			// ═══ CLASS-ACTION & PARLIAMENT CONSTANTS ═══
+			const PARLIAMENT_WORD_THRESHOLD = 300;
+			const PARLIAMENT_BAN_MINUTES = 10;
+			const PARLIAMENT_COMMISSIONS = [
+				{ name: "Committee for Industries and Services", chamber: "Chamber of Deputies", law: "Rules of the Chamber of Deputies Art. 57", article: "Investigation of the economic impact of public contract withdrawals" },
+				{ name: "Committee for Economic Policy, Reform and Privatization", chamber: "Senate of Romania", law: "Rules of the Senate Art. 63", article: "Inquiry regarding the destabilization of the state contracts market" },
+				{ name: "Committee for Budget, Finance and Banks", chamber: "Chamber of Deputies", law: "Law no. 500/2002 on public finance Art. 12", article: "Analysis of unplanned expenses resulting from mass termination" },
+				{ name: "Court of Accounts of Romania", chamber: "Independent Institution", law: "Law no. 94/1992 Art. 25-26", article: "Compliance audit regarding the use of public funds in terminated acquisitions" },
+				{ name: "Competition Council", chamber: "Autonomous Authority", law: "Competition Law no. 21/1996 Art. 5-9", article: "Investigation of potential anti-competitive practices in sectoral divestment" },
+				{ name: "Ombudsman", chamber: "Autonomous Institution", law: "Law no. 35/1997 Art. 13-15", article: "Referral regarding the violation of economic rights of private operators" },
+			];
+			const CLASS_ACTION_DEMAND_THRESHOLD = {
+				SP: [0.1, 0.15],
+				LB: [0.15, 0.25],
+				RE: [0.25, 0.4],
+				NC: [0.4, 0.55],
+				MN: [0.55, 0.7],
+				IC: [0.7, 0.85],
+			};
+			const CLASS_ACTION_MARGIN_RANGE = [0.05, 0.1];
+			const WORD_REFUSAL_BASE = {
+				SP: 0.08,
+				LB: 0.12,
+				RE: 0.18,
+				NC: 0.25,
+				MN: 0.35,
+				IC: 0.5,
+			};
 			const ROMANIAN_COURTS = ["Tribunalul București", "Tribunalul Cluj", "Tribunalul Timiș", "Tribunalul Iași", "Tribunalul Constanța", "Tribunalul Brașov", "Tribunalul Dolj", "Tribunalul Galați", "Tribunalul Argeș", "Tribunalul Sibiu", "Tribunalul Bihor", "Tribunalul Prahova", "Tribunalul Mureș", "Tribunalul Suceava", "Tribunalul Bacău", "Tribunalul Hunedoara", "Tribunalul Neamț", "Tribunalul Alba", "Tribunalul Arad", "Tribunalul Maramureș", "Tribunalul Buzău", "Tribunalul Satu Mare", "Tribunalul Vâlcea", "Tribunalul Dâmbovița", "Tribunalul Gorj", "Tribunalul Harghita", "Tribunalul Botoșani", "Tribunalul Vrancea", "Tribunalul Tulcea", "Tribunalul Olt", "Tribunalul Călărași", "Tribunalul Ialomița", "Tribunalul Giurgiu", "Tribunalul Teleorman", "Tribunalul Vaslui", "Tribunalul Mehedinți", "Tribunalul Covasna", "Tribunalul Bistrița-Năsăud", "Tribunalul Sălaj", "Tribunalul Caraș-Severin", "Curtea de Apel București", "Curtea de Apel Cluj", "Curtea de Apel Timișoara", "Curtea de Apel Iași", "Curtea de Apel Craiova", "Curtea de Apel Brașov", "ÎCCJ — Secția Comercială", "ÎCCJ — Secția de Contencios Administrativ"];
 
 			const COURT_ARGUMENTS = {
@@ -2420,7 +2578,7 @@
 				modPlaintiff: ["The plaintiff's argument carries marginally more weight on this point.", "The court finds the claimant's position slightly more persuasive in this hearing.", "The defendant's argument, while not without merit, falls short of the plaintiff's cited authority.", "The claimant's legal basis is somewhat stronger. The point favours the plaintiff."],
 				strongPlaintiff: ["The court is strongly persuaded by the plaintiff's argument. The defence is materially weakened.", "The cited precedent overwhelmingly supports the claimant's position on this matter.", "The defendant's argument lacks sufficient legal foundation to counter the plaintiff's authority.", "A commanding argument by the plaintiff. The defendant's position is critically undermined."],
 			};
-			const WORD_BLACKLIST = new Set([",", ".", "—", "–", "’", "⸻", "—", "⸺", "-", ";", ":", "&", "'", "’", "\u2018", "\u2019", "\u201c", "\u201d", "«", "»", "!", "?", "…", "(", ")", "[", "]", "{", "}", "/", "\\", "|", "*", "〜", "#", "@", "%", "^", "~", "`", "+", "=", "<", ">", '"', "_"]);
+			const WORD_BLACKLIST = new Set([",", ".", "—", "–", "’", "⸻", "—", "⸺", "-", ";", ":", "&", "'", "’", "\u2018", "\u2019", "\u201c", "\u201d", "«", "»", "!", "?", "…", "(", ")", "[", "]", "{", "}", "/", "\\", "|", "*", "〜", "#", "@", "%", "^", "~", "`", "+", "=", "​", "", " ", "\n", "\r\n", "„", "<", ">", '"', "_"]);
 			function getJudgeRemark(category) {
 				const pool = JUDGE_REMARKS[category] || JUDGE_REMARKS.tie;
 				return pool[Math.floor(Math.random() * pool.length)];
@@ -2649,6 +2807,46 @@
 				state._auctionDirty = true;
 				state._lastUntaggedCount = -1;
 				state.ministryMode = null;
+
+				// EU Funds initialization — Multi-Year MFF Cycle
+				// Roll which year (2021–2027) of the 7-year program we are in
+				const euMffYear = 2021 + Math.floor(Math.random() * 7);
+				const euUrgency = (euMffYear - 2021) / 6; // 0.0 (2021) → 1.0 (2027)
+
+				// Available = sum of tranches NOT yet expired by N+3
+				// Tranche from year X expires at end of year X+3
+				let euAvailable = 0;
+				let euExpired = 0;
+				for (const [yr, amount] of Object.entries(EU_MFF_TRANCHES)) {
+					const yearNum = parseInt(yr);
+					if (yearNum > euMffYear) continue; // Not yet allocated
+					if (euMffYear - yearNum > 3) {
+						// N+3 rule: this tranche expired
+						euExpired += amount;
+					} else {
+						euAvailable += amount;
+					}
+				}
+				// Scale from B€ to match the macro budget scale of this session
+				const euScaleFactor = maxExpenditure / 150; // normalized against ~150B€ baseline
+				const euTotal = euAvailable * euScaleFactor;
+
+				state.euFunds = {
+					total: euTotal,
+					remaining: euTotal,
+					used: 0,
+					leaked: 0,
+					expired: euExpired * euScaleFactor,
+					useEU: false,
+					lastDayProcessed: 0,
+					olafTriggered: false,
+					mffYear: euMffYear,
+					urgency: euUrgency,
+					parliamentApproved: false,
+					lastVoteDay: -999,
+					voteHistory: [],
+					_decommitApplied: false,
+				};
 				state.companies.forEach((c) => {
 					c.bidPrice = c.costMultiplier;
 					c.unionId = null;
@@ -2683,6 +2881,8 @@
 					c.cumulativePL = 0;
 				});
 				state._charDeleteTracker = {};
+				state.totalWordsDeleted = 0;
+				state._parliamentBanActive = false;
 				state._lastClearingPrice = null;
 				state._lastAuctionStats = null;
 				state.courtRecord = {
@@ -2706,6 +2906,7 @@
 					c.stockHistory = [1.0];
 					c.totalLettersOwned = 0;
 					c.letterRevenue = 0;
+					c._rejectionMemory = {};
 				});
 				state.stockExchangeVolume = 0;
 				state.letterTradesTotal = 0;
@@ -2774,10 +2975,10 @@
 						eco.currentRate += meanRevert + eco.momentum + shock + marketPressure;
 						eco.currentRate = Math.max(eco.baseRate * 0.7, Math.min(eco.baseRate * 1.4, eco.currentRate));
 
-						const sampleInterval = Math.max(1, Math.floor(state.wordBudget / 300));
+						const sampleInterval = Math.max(1, Math.floor(state.wordBudget / 100));
 						if (eco.totalWords % sampleInterval === 0 || eco.totalWords <= 10) {
 							eco.history.push(eco.currentRate);
-							if (eco.history.length > 400) eco.history.shift();
+							if (eco.history.length > 150) eco.history.shift();
 						}
 					}
 					eco.lastDelta = wordDelta;
@@ -2786,7 +2987,7 @@
 					eco.totalWords = Math.max(0, eco.totalWords - deleteCount);
 					eco.fiscalDay = Math.min(FISCAL_DAYS, Math.floor(eco.totalWords / eco.wordsPerDay));
 
-					const sampleInterval = Math.max(1, Math.floor(state.wordBudget / 300));
+					const sampleInterval = Math.max(1, Math.floor(state.wordBudget / 100));
 					const entriesToRemove = Math.max(1, Math.ceil(deleteCount / sampleInterval));
 					for (let i = 0; i < entriesToRemove && eco.history.length > 1; i++) {
 						eco.history.pop();
@@ -2833,7 +3034,7 @@
 				if (!state) initState();
 
 				const mg = $("#setupMacroGrid");
-				mg.innerHTML = `
+				let mgHtml = `
     <div class="macro-cell"><div class="macro-label">GDP Equivalent</div><div class="macro-val">${state.gdp.toFixed(1)}<span class="unit"> B €</span></div></div>
     <div class="macro-cell"><div class="macro-label">GDP (RON)</div><div class="macro-val">${(state.gdp * RON_RATE).toFixed(1)}<span class="unit"> B RON</span></div></div>
     <div class="macro-cell"><div class="macro-label">Income Ratio</div><div class="macro-val">${(GDP_INCOME_RATIO * 100).toFixed(0)}<span class="unit">% of GDP</span></div></div>
@@ -2841,6 +3042,14 @@
     <div class="macro-cell"><div class="macro-label">Deficit Ceiling (6%)</div><div class="macro-val">${state.deficitCeil.toFixed(1)}<span class="unit"> B €</span></div></div>
     <div class="macro-cell highlight"><div class="macro-label">Maximum Expenditure</div><div class="macro-val" style="color:var(--accent)">${state.maxExpenditure.toFixed(1)}<span class="unit"> B €</span></div></div>
   `;
+				if (state.euFunds) {
+					mgHtml += `
+    <div class="macro-cell"></div>
+    <div class="macro-cell" style="background:#eff6ff;border:1px solid #bfdbfe"><div class="macro-label" style="color:#1e40af">EU Cohesion & PNRR Tranches</div><div class="macro-val" style="color:#1d4ed8">${(state.euFunds.total * 1000).toFixed(0)}<span class="unit" style="color:#1e40af"> M €</span></div></div>
+	<div class="macro-cell"><div class="macro-label">EU MFF Cycle Year</div><div class="macro-val">${state.euFunds.mffYear}<span class="unit"> (Year ${state.euFunds.mffYearsElapsed || state.euFunds.mffYear - 2020}/${EU_MFF_TOTAL_YEARS})</span></div></div>
+					`;
+				}
+				mg.innerHTML = mgHtml;
 
 				const rg = $("#setupRateGrid");
 				rg.innerHTML = `
@@ -2890,12 +3099,19 @@
 				const deltaSymbol = delta > 0.01 ? "▲" : delta < -0.01 ? "▼" : "—";
 
 				const pm = $("#panelMacro");
-				pm.innerHTML = `
+				let pmHtml = `
     <div class="mmcell"><div class="mml">GDP</div><div class="mmv sm">${state.gdp.toFixed(1)} <span class="mu">B €</span></div></div>
     <div class="mmcell"><div class="mml">Revenue</div><div class="mmv sm">${state.revenue.toFixed(1)} <span class="mu">B €</span></div></div>
     <div class="mmcell accent-bg"><div class="mml">Max Expenditure</div><div class="mmv sm">${state.maxExpenditure.toFixed(1)} <span class="mu">B €</span></div></div>
     <div class="mmcell"><div class="mml">Deficit Ceiling</div><div class="mmv sm">${state.deficitCeil.toFixed(1)} <span class="mu">B €</span></div></div>
   `;
+				if (state.euFunds) {
+					pmHtml += `
+    <div class="mmcell" style="background:#eff6ff;border:1px solid #bfdbfe"><div class="mml" style="color:#1e40af">EU MFF Cycle Year</div><div class="mmv sm" style="color:#1d4ed8">${state.euFunds.mffYear} <span class="mu" style="color:#1e40af;font-size:8px">Y${state.euFunds.mffYearsElapsed || state.euFunds.mffYear - 2020}/${EU_MFF_TOTAL_YEARS}</span></div></div>
+    <div class="mmcell" style="background:#eff6ff;border:1px solid #bfdbfe;border-left:none"><div class="mml" style="color:#1e40af">EU Available</div><div class="mmv sm" style="color:#1d4ed8">${(state.euFunds.total * 1000).toFixed(0)} <span class="mu" style="color:#1e40af">M €</span></div></div>
+					`;
+				}
+				pm.innerHTML = pmHtml;
 
 				const er = $("#econRows");
 				er.innerHTML = `
@@ -3001,7 +3217,75 @@
     <div class="econ-row"><span class="el">Year Progress</span><span class="ev">${yearProgress.toFixed(1)}%</span></div>
     <div class="econ-row"><span class="el">Quarter</span><span class="ev">Q${quarter}</span></div>
     <div class="econ-row"><span class="el">Days Remaining</span><span class="ev">${FISCAL_DAYS - eco.fiscalDay}</span></div>
+    ${
+		state.euFunds
+			? (() => {
+					const eu = state.euFunds;
+					const mffYearProgress = (eu.mffYearsElapsed || 0) / EU_MFF_TOTAL_YEARS;
+					const decommitWarn = mffYearProgress >= 0.6 && !eu._decommitApplied;
+					const voteAvailable = !eu.parliamentApproved && !eu.olafTriggered && eco.fiscalDay - eu.lastVoteDay >= 1;
+					return `
+    <div style="margin-top:8px;padding:6px 8px;background:#eff6ff;border-radius:4px;border:1px solid #bfdbfe">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#1e40af">🇪🇺 EU STRUCTURAL FUNDS</div>
+        <div style="font-size:9px;color:var(--text-muted)">MFF ${eu.mffYear} · Year ${eu.mffYearsElapsed || eu.mffYear - 2020}/${EU_MFF_TOTAL_YEARS} · Urgency ${(eu.urgency * 100).toFixed(0)}%</div>
+      </div>
+      <div class="econ-row"><span class="el">Available</span><span class="ev" style="color:#1d4ed8">${(eu.remaining * 1000).toFixed(1)} M€</span></div>
+      <div class="econ-row"><span class="el">N+3 Expired</span><span class="ev" style="color:var(--danger)">${(eu.expired * 1000).toFixed(1)} M€</span></div>
+      <div class="econ-row"><span class="el">Absorbed</span><span class="ev" style="color:var(--success)">${eu.total > 0 ? ((eu.used / eu.total) * 100).toFixed(1) : 0}%</span></div>
+      <div class="econ-row"><span class="el">Leaked</span><span class="ev" style="color:var(--danger)">${eu.total > 0 ? ((eu.leaked / eu.total) * 100).toFixed(1) : 0}%</span></div>
+      ${eu.parliamentApproved && eu.annualCap ? `<div class="econ-row"><span class="el">Annual Cap</span><span class="ev" style="color:#1e40af">${(eu.annualCap * 1000).toFixed(1)} M€ (max ${(EU_MAX_ANNUAL_ABSORPTION * 100).toFixed(0)}%/yr)</span></div>` : ""}
+      ${decommitWarn && !eu._decommitApplied ? '<div style="margin-top:4px;font-size:9px;color:#ca8a04;font-weight:700">⚠ N+3 Decommitment approaching — MFF Year ' + eu.mffYear + " tranches at risk</div>" : ""}
+      ${eu.olafTriggered ? '<div style="margin-top:4px;font-size:9px;color:#991b1b;font-weight:700">⚠ OLAF INVESTIGATION — FUNDS FROZEN</div>' : ""}
+      ${!eu.olafTriggered && !eu.remaining ? '<div style="margin-top:4px;font-size:9px;color:var(--danger);font-weight:700">● EU funds exhausted</div>' : ""}
+      <div class="econ-row" style="margin-top:6px">
+        ${
+			eu.parliamentApproved
+				? `
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="euFundsToggle" ${eu.useEU ? "checked" : ""}>
+            <span class="el" style="color:#1e40af;font-weight:600">Use EU Funds</span>
+          </label>
+          <span class="ev" style="font-size:9px;color:var(--success)">✓ Both Chambers Approved</span>
+        `
+				: voteAvailable
+				? `
+          <button id="euVoteBtn" style="font-size:9px;padding:3px 8px;background:#1e1b4b;color:#e0e7ff;border:none;border-radius:3px;cursor:pointer;width:100%">
+            🏛 Request Bicameral Parliamentary Vote (Senate + Chamber)
+          </button>
+        `
+				: `
+          <span style="font-size:9px;color:var(--text-muted)">🔒 Bicameral vote required (${eu.lastVoteDay >= 0 ? "retry available" : "click to request"})</span>
+        `
+		}
+      </div>
+    </div>`;
+			  })()
+			: ""
+	}
   `;
+
+				// EU funds daily tick
+				if (state.euFunds) processEUFundsDay();
+
+				// Wire up EU toggle (only if parliament approved)
+				const euToggle = $("#euFundsToggle");
+				if (euToggle) {
+					euToggle.onchange = (e) => {
+						state.euFunds.useEU = e.target.checked;
+					};
+				}
+
+				// Wire up parliament vote button
+				const euVoteBtn = $("#euVoteBtn");
+				if (euVoteBtn) {
+					euVoteBtn.onclick = () => {
+						holdEUFundsParliamentVote((passed) => {
+							// Force panel re-render after vote
+							if (typeof updatePanel === "function") updatePanel();
+						});
+					};
+				}
 
 				const std = $("#screenTimeDisplay");
 				let totalScreenSec = 0;
@@ -3167,27 +3451,38 @@
 				ctx.lineWidth = 1.5;
 				ctx.stroke();
 			}
+			// Add this helper function to ensure both counters use the SAME logic
+			function getWordCount(text) {
+				if (!text) return 0;
+				const matches = text.match(WORD_MATCH_REGEX);
+				if (!matches) return 0;
+				return matches.filter((w) => isValidWord(w)).length;
+			}
+
 			function countAllWords() {
-    const editor = $("#editor");
-    if (!editor) return 0;
+				const editor = $("#editor");
+				if (!editor) return 0;
+				let text = "";
+				const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, {
+					acceptNode(node) {
+						const tag = node.parentElement && node.parentElement.closest(".m-tag");
+						if (tag && tag.getAttribute("data-ministry") === "MoIA") return NodeFilter.FILTER_REJECT;
+						return NodeFilter.FILTER_ACCEPT;
+					},
+				});
+				let n;
+				while ((n = walker.nextNode())) text += n.nodeValue + " ";
+				return getWordCount(text);
+			}
 
-    // Create a clone to manipulate so we don't mess up the actual editor
-    const clone = editor.cloneNode(true);
-    
-    // REMOVE all MoIA tags from the count entirely
-    clone.querySelectorAll('.m-tag[data-ministry="MoIA"]').forEach(el => el.remove());
-
-    const text = clone.innerText || "";
-    return text
-        .trim()
-        .split(/\s+/)
-        .filter((w) => isValidWord(w)).length;
-}
+			function countWordsInElement(el) {
+				return getWordCount(el.textContent);
+			}
 			function countAllChars() {
 				const editor = $("#editor");
 				if (!editor) return 0;
-    const clone = editor.cloneNode(true);
-    clone.querySelectorAll('.m-tag[data-ministry="MoIA"]').forEach(el => el.remove());
+				const clone = editor.cloneNode(true);
+				clone.querySelectorAll('.m-tag[data-ministry="MoIA"]').forEach((el) => el.remove());
 				return (editor.innerText || "").length;
 			}
 			function countWordsInElement(el) {
@@ -3197,10 +3492,596 @@
 					.split(/\s+/)
 					.filter((w) => isValidWord(w)).length;
 			}
+			// ═══════════════════════════════════════════════════════════════
+			// EU FUNDS: Year-Based Tick (MFF multi-year cycle)
+			// Runs once per MFF year transition, not daily
+			// ═══════════════════════════════════════════════════════════════
+
+			function processEUFundsYear() {
+				if (!state || !state.euFunds || !state.eco) return;
+				const eu = state.euFunds;
+				const day = state.eco.fiscalDay;
+
+				// Calculate which MFF year we are in based on fiscal progress
+				// Each MFF year spans 365 fiscal days, total 7 years = 2555 days conceptually
+				// But our fiscal system runs 365 days = 1 MFF year
+				// We track mffYearsElapsed to know how many year-ticks have occurred
+				if (!eu.mffYearsElapsed) eu.mffYearsElapsed = 0;
+
+				// Check MFF year transition — triggers once per year boundary
+				const yearProgress = day / FISCAL_DAYS;
+				const expectedYears = Math.floor(yearProgress * EU_MFF_TOTAL_YEARS);
+				if (expectedYears <= eu.mffYearsElapsed) return; // No new year transition yet
+
+				// Process however many years we jumped (usually 1)
+				while (eu.mffYearsElapsed < expectedYears && eu.mffYearsElapsed < EU_MFF_TOTAL_YEARS) {
+					eu.mffYearsElapsed++;
+					const currentMffYear = 2021 + eu.mffYearsElapsed - 1;
+					eu.mffYear = currentMffYear;
+					eu.urgency = (eu.mffYearsElapsed - 1) / (EU_MFF_TOTAL_YEARS - 1); // 0.0 → 1.0
+
+					if (eu.remaining <= 0 || eu.olafTriggered) continue;
+
+					// Skip grace years (first year = setup)
+					if (eu.mffYearsElapsed <= EU_GRACE_YEARS) continue;
+
+					// ── YEARLY DECAY ──
+					// Urgency-scaled: early cycle nearly nothing, late cycle heavy
+					const effectiveDecay = EU_YEARLY_DECAY_RATE * (0.3 + eu.urgency * 2.0);
+
+					if (!eu.useEU) {
+						// Passive decay — funds rot unused for a whole year
+						const decay = eu.remaining * effectiveDecay;
+						eu.remaining = Math.max(0, eu.remaining - decay);
+						eu.leaked += decay;
+						if (typeof addMarketEvent === "function") {
+							addMarketEvent(`🇪🇺 MFF Year ${currentMffYear}: <strong>${(decay * 1000).toFixed(1)} M€</strong> lost to inaction — funds decaying unused`, "escalation");
+						}
+					} else {
+						// Active absorption — yearly audit irregularities
+						if (Math.random() < EU_LEAK_CHANCE_PER_YEAR) {
+							const leakPct = EU_LEAK_AMOUNT_RANGE[0] + Math.random() * (EU_LEAK_AMOUNT_RANGE[1] - EU_LEAK_AMOUNT_RANGE[0]);
+							const leak = eu.remaining * leakPct;
+							eu.remaining = Math.max(0, eu.remaining - leak);
+							eu.leaked += leak;
+							if (typeof addMarketEvent === "function") {
+								addMarketEvent(`🇪🇺 MFF Year ${currentMffYear}: Audit irregularity — <strong>${(leak * 1000).toFixed(1)} M€</strong> flagged for correction`, "escalation");
+							}
+						}
+					}
+
+					// ── N+3 DECOMMITMENT ──
+					// Check if any tranches have expired (allocated in year X, expire end of X+3)
+					let yearlyDecommit = 0;
+					for (const [yr, amount] of Object.entries(EU_MFF_TRANCHES)) {
+						const yearNum = parseInt(yr);
+						const expiryYear = yearNum + 3;
+						// Tranche expires at the END of year X+3
+						if (currentMffYear > expiryYear && !eu._decommittedTranches) {
+							// This tranche has expired
+							yearlyDecommit += amount;
+						}
+					}
+
+					if (yearlyDecommit > 0 && !eu._decommitApplied) {
+						eu._decommitApplied = true;
+						if (!eu._decommittedTranches) eu._decommittedTranches = {};
+						// Scale decommitment by actual remaining vs what should've been absorbed
+						const decommitRatio = Math.min(0.65, 0.1 + eu.urgency * 0.55);
+						const lost = eu.remaining * decommitRatio;
+						eu.remaining = Math.max(0, eu.remaining - lost);
+						eu.leaked += lost;
+						if (typeof addMarketEvent === "function") {
+							addMarketEvent(`🇪🇺 <strong>N+3 Decommitment MFF ${currentMffYear}</strong> — European Commission reclaimed ` + `<strong style="color:var(--danger)">${(lost * 1000).toFixed(0)} M€</strong> ` + `(${(decommitRatio * 100).toFixed(0)}% of unabsorbed tranches)`, "escalation");
+						}
+					}
+
+					// ── ANNUAL ABSORPTION CAP ──
+					// Even if approved, can't absorb more than 25% of remaining per MFF year
+					if (eu.useEU && eu.parliamentApproved) {
+						eu.annualCap = eu.remaining * EU_MAX_ANNUAL_ABSORPTION;
+						eu.annualUsed = 0;
+					}
+
+					// ── OLAF CHECK ──
+					if (!eu.olafTriggered && eu.total > 0 && eu.leaked / eu.total > EU_OLAF_THRESHOLD) {
+						eu.olafTriggered = true;
+						const penalty = eu.leaked * EU_OLAF_PENALTY_MULT;
+						state._nationalizationCost = (state._nationalizationCost || 0) + penalty;
+						eu.remaining = 0;
+						if (typeof addMarketEvent === "function") {
+							addMarketEvent(`🇪🇺 <strong>OLAF Investigation opened</strong> — ${(eu.leaked * 1000).toFixed(1)} M€ in irregularities ` + `→ <strong style="color:var(--danger)">${(penalty * 1000).toFixed(1)} M€</strong> clawed back`, "escalation");
+						}
+						showOLAFPopup(eu, penalty);
+					}
+				}
+			}
+			// Legacy alias
+			function processEUFundsDay() {
+				processEUFundsYear();
+			}
+
+			function showOLAFPopup(eu, penalty) {
+				const overlay = document.createElement("div");
+				overlay.className = "nat-overlay";
+				overlay.style.zIndex = "20000";
+				document.body.appendChild(overlay);
+
+				overlay.innerHTML = `
+	<div class="nat-popup" style="max-width:580px">
+		<div class="nat-header" style="background:#003399;border-radius:8px 8px 0 0">
+			<span class="nat-icon" style="font-size:24px">🇪🇺</span>
+			<h3 style="color:#ffcc00;font-size:15px">OLAF — European Anti-Fraud Office</h3>
+		</div>
+		<div class="nat-body" style="background:#fffbeb;border:2px solid #ca8a04">
+			<div style="text-align:center;margin-bottom:12px">
+				<div style="font-size:10px;color:#92400e;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">
+					Regulation (EU, Euratom) No 883/2013 — Art. 3 & 11
+				</div>
+				<div style="font-size:13px;font-weight:700;color:#003399">
+					INVESTIGATION & FINANCIAL CORRECTION
+				</div>
+			</div>
+
+			<div style="font-size:11px;line-height:1.7;color:#1c1917;margin-bottom:12px">
+				<p>The European Anti-Fraud Office has determined that <strong>${((eu.leaked / eu.total) * 100).toFixed(1)}%</strong>
+				of allocated EU structural funds (<strong>${(eu.total * 1000).toFixed(1)} M€</strong>) have been lost to
+				irregularities, bureaucratic waste, and absorption failure.</p>
+
+				<p style="margin-top:6px">Under <strong>Regulation (EU) 883/2013</strong> and the <strong>Common Provisions Regulation
+				(EU) 2021/1060</strong>, the Office has ordered the following:</p>
+
+				<div style="margin-top:8px;padding:8px 10px;background:#fef2f2;border-radius:4px;border:1px solid #fecaca">
+					<strong style="color:#991b1b">Financial correction:</strong>
+					<strong style="color:var(--danger)">${(penalty * 1000).toFixed(1)} M€</strong> (${EU_OLAF_PENALTY_MULT}× clawback)
+					deducted from the state treasury.<br>
+					<strong style="color:#991b1b">Fund suspension:</strong> All remaining EU structural funds have been <strong>frozen</strong>
+					for the remainder of this fiscal session.
+				</div>
+
+				<p style="margin-top:8px;font-size:10px;color:var(--text-muted);font-style:italic">
+					The European Public Prosecutor's Office (EPPO) has been notified under Art. 24
+					of Council Regulation (EU) 2017/1939 for potential criminal investigation.
+				</p>
+			</div>
+
+			<div class="nat-actions" style="justify-content:center">
+				<button class="btn btn-primary" id="olafDismiss" style="background:#003399;border-color:#003399">
+					Acknowledge
+				</button>
+			</div>
+		</div>
+	</div>`;
+
+				overlay.querySelector("#olafDismiss").onclick = () => overlay.remove();
+
+				const keyH = (e) => {
+					if (e.key === "Enter" || e.key === "Escape") {
+						e.preventDefault();
+						e.stopPropagation();
+						document.removeEventListener("keydown", keyH, true);
+						overlay.remove();
+					}
+				};
+				document.addEventListener("keydown", keyH, true);
+			}
+
+			// ═══════════════════════════════════════════════════════════════
+			// ═══════════════════════════════════════════════════════════════
+			// EU FUNDS: Parliamentary Vote
+			// ═══════════════════════════════════════════════════════════════
+
+			// ═══════════════════════════════════════════════════════════════
+			// EU FUNDS: Bicameral Parliamentary Vote
+			// Senate (Senat) + Chamber of Deputies (Camera Deputaților)
+			// Each MP votes individually — approve/reject/abstain
+			// ═══════════════════════════════════════════════════════════════
+
+			function rollChamberVote(chamberParties, eu, chamberName) {
+				const ABSTAIN_CHANCE = 0.08; // 8% chance any MP abstains
+				const REBEL_CHANCE = 0.05; // 5% chance MP rebels against party line
+
+				const results = chamberParties.map((party) => {
+					const members = [];
+					for (let i = 0; i < party.seats; i++) {
+						let voteP = party.euStance;
+
+						// Urgency boost
+						voteP += eu.urgency * 0.18;
+
+						// Coalition discipline
+						if (party.coalition) voteP += 0.1;
+
+						// Clamp
+						voteP = Math.max(0, Math.min(1, voteP));
+
+						// Roll individual vote
+						const r = Math.random();
+						let vote; // 'approve', 'reject', 'abstain'
+						let dialogue = "";
+
+						if (r < ABSTAIN_CHANCE) {
+							vote = "abstain";
+							dialogue = MP_ABSTAIN_DIALOGUE[Math.floor(Math.random() * MP_ABSTAIN_DIALOGUE.length)];
+						} else {
+							const rebel = Math.random() < REBEL_CHANCE;
+							const wouldApprove = Math.random() < voteP;
+							const actualApprove = rebel ? !wouldApprove : wouldApprove;
+
+							if (actualApprove) {
+								vote = "approve";
+								const pool = party.coalition ? MP_DIALOGUE.approve_coalition : MP_DIALOGUE.approve_opposition;
+								dialogue = pool[Math.floor(Math.random() * pool.length)];
+							} else {
+								vote = "reject";
+								const pool = party.coalition ? MP_DIALOGUE.disagree_coalition : MP_DIALOGUE.disagree_opposition;
+								dialogue = pool[Math.floor(Math.random() * pool.length)];
+							}
+						}
+
+						members.push({
+							partyCode: party.code,
+							partyName: party.name,
+							partyColor: party.color,
+							coalition: party.coalition,
+							vote,
+							dialogue,
+							seatIndex: i,
+						});
+					}
+
+					const forVotes = members.filter((m) => m.vote === "approve").length;
+					const againstVotes = members.filter((m) => m.vote === "reject").length;
+					const abstainVotes = members.filter((m) => m.vote === "abstain").length;
+
+					return {
+						party,
+						members,
+						forVotes,
+						againstVotes,
+						abstainVotes,
+						totalSeats: party.seats,
+					};
+				});
+
+				const totalFor = results.reduce((s, r) => s + r.forVotes, 0);
+				const totalAgainst = results.reduce((s, r) => s + r.againstVotes, 0);
+				const totalAbstain = results.reduce((s, r) => s + r.abstainVotes, 0);
+				const totalSeats = results.reduce((s, r) => s + r.totalSeats, 0);
+
+				return { chamber: chamberName, results, totalFor, totalAgainst, totalAbstain, totalSeats };
+			}
+
+			function holdEUFundsParliamentVote(onResult) {
+				if (!state || !state.euFunds) return;
+				const eu = state.euFunds;
+
+				const senateParties = getSenate(eu.mffYear);
+				const deputyParties = getDeputies(eu.mffYear);
+				const senateMaj = getSenateMajority(eu.mffYear);
+				const deputyMaj = getDeputiesMajority(eu.mffYear);
+
+				const senateResult = rollChamberVote(senateParties, eu, "Senatul României");
+				const deputyResult = rollChamberVote(deputyParties, eu, "Camera Deputaților");
+
+				const senatePassed = senateResult.totalFor >= senateMaj;
+				const deputyPassed = deputyResult.totalFor >= deputyMaj;
+				const passed = senatePassed && deputyPassed;
+
+				eu.lastVoteDay = state.eco.fiscalDay;
+				eu.voteHistory.push({
+					day: state.eco.fiscalDay,
+					senate: { for: senateResult.totalFor, against: senateResult.totalAgainst, abstain: senateResult.totalAbstain, passed: senatePassed },
+					deputies: { for: deputyResult.totalFor, against: deputyResult.totalAgainst, abstain: deputyResult.totalAbstain, passed: deputyPassed },
+					passed,
+				});
+
+				if (passed) {
+					eu.parliamentApproved = true;
+					eu.annualCap = eu.remaining * EU_MAX_ANNUAL_ABSORPTION;
+					eu.annualUsed = 0;
+					if (typeof addMarketEvent === "function") {
+						addMarketEvent(`🏛 <strong>BOTH CHAMBERS APPROVED EU funds</strong> — Senate ${senateResult.totalFor}/${senateResult.totalSeats}, Deputies ${deputyResult.totalFor}/${deputyResult.totalSeats}`, "antitrust");
+					}
+				} else {
+					const failedChamber = !senatePassed && !deputyPassed ? "BOTH" : !senatePassed ? "SENATE" : "DEPUTIES";
+					if (typeof addMarketEvent === "function") {
+						addMarketEvent(`🏛 <strong>Parliament REJECTED EU funds</strong> — ${failedChamber} failed — Senate ${senateResult.totalFor}/${senateMaj}, Deputies ${deputyResult.totalFor}/${deputyMaj}`, "dissolve");
+					}
+				}
+
+				showBicameralVotePopup(senateResult, deputyResult, senateMaj, deputyMaj, senatePassed, deputyPassed, passed, onResult);
+			}
+
+			function buildHemicycleRadial(chamberResult, containerId) {
+				// Collect all members with their votes
+				const allMembers = [];
+				chamberResult.results.forEach((r) => {
+					r.members.forEach((m) => allMembers.push(m));
+				});
+
+				const total = allMembers.length;
+				const rows = Math.max(3, Math.ceil(total / 30)); // 3-12 rows
+				const centerX = 180;
+				const centerY = 170;
+				const minRadius = 40;
+				const maxRadius = 150;
+
+				let dots = "";
+				let memberIdx = 0;
+				for (let row = 0; row < rows && memberIdx < total; row++) {
+					const radius = minRadius + (maxRadius - minRadius) * (row / Math.max(1, rows - 1));
+					const circumference = Math.PI * radius;
+					const seatsInRow = Math.min(total - memberIdx, Math.max(5, Math.floor(circumference / 8)));
+					for (let s = 0; s < seatsInRow && memberIdx < total; s++) {
+						const angle = Math.PI - (Math.PI * (s + 0.5)) / seatsInRow;
+						const x = centerX + Math.cos(angle) * radius;
+						const y = centerY - Math.sin(angle) * radius;
+						const m = allMembers[memberIdx];
+						// Inner fill is party color, outline is the decision
+						const fillColor = m.partyColor;
+						const strokeColorNotVoted = "#d1d5db";
+						const targetStrokeColor = m.vote === "approve" ? "#16a34a" : m.vote === "reject" ? "#dc2626" : "#6b7280";
+						const title = `${m.partyCode} #${m.seatIndex + 1}: ${m.vote.toUpperCase()}\n${m.dialogue.replace(/"/g, "&quot;")}`;
+						const voteIcon = m.vote === "approve" ? "🟢" : m.vote === "reject" ? "🔴" : "⚫";
+
+						let excerptHtml = "";
+						if (m.showDialogue) {
+							excerptHtml = `<div style="margin-bottom:6px;padding:5px 8px;background:${m.coalition ? "#f0fdf4" : "#fef2f2"};border-radius:4px;border-left:3px solid ${m.partyColor};font-size:9px;line-height:1.4;"><strong style="color:${m.partyColor}">${m.partyCode}</strong> member ${voteIcon}: <em>&quot;${m.dialogue.replace(/"/g, "&quot;")}&quot;</em></div>`;
+						}
+
+						dots += `<circle id="dot-${containerId}-${memberIdx}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="${fillColor}" stroke="${strokeColorNotVoted}" stroke-width="2.5" data-mp="true" data-target-stroke="${targetStrokeColor}" data-excerpt="${encodeURIComponent(excerptHtml)}" style="cursor:pointer;transition:stroke 0.2s">
+				<title>${title}</title>
+			</circle>`;
+						memberIdx++;
+					}
+				}
+
+				return `<svg id="${containerId}" width="360" height="200" viewBox="0 0 360 200" style="display:block;margin:0 auto">
+		<rect width="360" height="200" fill="transparent" rx="6"/>
+		<line x1="180" y1="170" x2="180" y2="5" stroke="#e5e7eb" stroke-width="0.5" stroke-dasharray="3,3"/>
+		${dots}
+		<text x="180" y="195" text-anchor="middle" font-size="8" fill="#9ca3af" font-family="Inter,sans-serif">${chamberResult.chamber}</text>
+	</svg>`;
+			}
+
+			function showBicameralVotePopup(senateResult, deputyResult, senateMaj, deputyMaj, senatePassed, deputyPassed, passed, onResult) {
+				const eu = state.euFunds;
+				const overlay = document.createElement("div");
+				overlay.className = "nat-overlay";
+				overlay.style.zIndex = "20000";
+				document.body.appendChild(overlay);
+
+				// Pick a few random MPs to show dialogue
+				const allSenateMembers = senateResult.results.flatMap((r) => r.members);
+				const allDeputyMembers = deputyResult.results.flatMap((r) => r.members);
+				const allMps = [...allSenateMembers, ...allDeputyMembers];
+
+				const dialogueSamples = allMps
+					.filter((m) => m.dialogue)
+					.sort(() => Math.random() - 0.5)
+					.slice(0, 8);
+				dialogueSamples.forEach((m) => (m.showDialogue = true));
+
+				function buildChamberSummary(result, majority, chamberPassed) {
+					let html = "";
+					result.results.forEach((r) => {
+						if (r.totalSeats === 0) return;
+						const pct = r.totalSeats > 0 ? (r.forVotes / r.totalSeats) * 100 : 0;
+						html += `
+			<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:9px">
+				<span style="width:8px;height:8px;border-radius:50%;background:${r.party.color};flex-shrink:0;display:inline-block;border:1px solid rgba(0,0,0,0.15)"></span>
+				<span style="width:44px;font-family:'JetBrains Mono',monospace;color:var(--text-muted)">${r.party.code}</span>
+				<div style="flex:1;background:#e5e7eb;border-radius:2px;height:6px;overflow:hidden;display:flex">
+					<div style="width:${pct.toFixed(0)}%;height:100%;background:#16a34a"></div>
+					<div style="width:${((r.againstVotes / Math.max(1, r.totalSeats)) * 100).toFixed(0)}%;height:100%;background:#dc2626"></div>
+					<div style="width:${((r.abstainVotes / Math.max(1, r.totalSeats)) * 100).toFixed(0)}%;height:100%;background:#6b7280"></div>
+				</div>
+				<span style="width:70px;font-family:'JetBrains Mono',monospace;font-size:8px;text-align:right">
+					<span style="color:#16a34a">${r.forVotes}</span>/<span style="color:#dc2626">${r.againstVotes}</span>/<span style="color:#6b7280">${r.abstainVotes}</span>
+				</span>
+			</div>`;
+					});
+					return html;
+				}
+
+				function buildLegend() {
+					return `<div style="display:flex;gap:12px;justify-content:center;font-size:8px;color:var(--text-muted);margin:6px 0">
+			<span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#e5e7eb;vertical-align:middle;margin-right:2px"></span>Not Voted</span>
+			<span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;border:2px solid #6b7280;background:none;vertical-align:middle;margin-right:2px"></span>Abstain</span>
+			<span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;border:2px solid #dc2626;background:none;vertical-align:middle;margin-right:2px"></span>Reject</span>
+			<span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;border:2px solid #16a34a;background:none;vertical-align:middle;margin-right:2px"></span>Approve</span>
+		</div>`;
+				}
+
+				overlay.innerHTML = `
+	<div class="nat-popup" style="max-width:820px;max-height:95vh;overflow-y:auto">
+		<div class="nat-header" style="background:#1e1b4b;border-radius:8px 8px 0 0">
+			<span class="nat-icon" style="font-size:20px">🏛</span>
+			<h3 style="color:#e0e7ff;font-size:13px">BICAMERAL VOTE — EU STRUCTURAL FUNDS APPROVAL</h3>
+		</div>
+		<div class="nat-body" style="padding:12px 16px">
+			<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:9px;color:var(--text-muted)">
+				<span>Art. 148 Constitution of Romania · Bicameral Procedure</span>
+				<span>MFF Year: <strong>${eu.mffYear}</strong> (Year ${eu.mffYearsElapsed || eu.mffYear - 2020} of 7)</span>
+			</div>
+			<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:9px">
+				<span>Available: <strong>${(eu.total * 1000).toFixed(0)} M€</strong></span>
+				<span style="color:var(--danger)">N+3 Expired: <strong>${(eu.expired * 1000).toFixed(0)} M€</strong></span>
+				<span style="color:var(--text-muted)">Urgency: <strong>${(eu.urgency * 100).toFixed(0)}%</strong></span>
+			</div>
+
+			${buildLegend()}
+
+			<!-- TWO CHAMBERS SIDE BY SIDE -->
+			<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+				<!-- SENATE -->
+				<div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;background:#fafbfc">
+					<div style="font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:#1e40af;margin-bottom:4px;text-align:center">
+						🏛 Romanian Senate
+					</div>
+					<div style="font-size:8px;color:var(--text-muted);text-align:center;margin-bottom:6px">
+						${senateResult.totalSeats} senators · Majority: ${senateMaj}
+					</div>
+					${buildHemicycleRadial(senateResult, "senateRadial")}
+					<div class="chamber-summaries" style="opacity:0;transition:opacity 0.5s;margin-top:6px">
+						${buildChamberSummary(senateResult, senateMaj, senatePassed)}
+						<div style="text-align:center;margin-top:8px;padding:6px;border-radius:4px;background:${senatePassed ? "#f0fdf4" : "#fef2f2"};border:1px solid ${senatePassed ? "#16a34a" : "#dc2626"}">
+							<div style="font-size:14px;font-weight:700;color:${senatePassed ? "#16a34a" : "#dc2626"};font-family:'JetBrains Mono',monospace">
+								${senateResult.totalFor} / ${senateResult.totalAgainst} / ${senateResult.totalAbstain}
+							</div>
+							<div style="font-size:8px;color:${senatePassed ? "#15803d" : "#991b1b"};font-weight:600;margin-top:2px">
+								${senatePassed ? "✓ SENATE APPROVES" : "✗ SENATE REJECTS"} — needed ${senateMaj}
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- CHAMBER OF DEPUTIES -->
+				<div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;background:#fafbfc">
+					<div style="font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:#1e40af;margin-bottom:4px;text-align:center">
+						🏛 Chamber of Deputies
+					</div>
+					<div style="font-size:8px;color:var(--text-muted);text-align:center;margin-bottom:6px">
+						${deputyResult.totalSeats} deputies · Majority: ${deputyMaj}
+					</div>
+					${buildHemicycleRadial(deputyResult, "deputyRadial")}
+					<div class="chamber-summaries" style="opacity:0;transition:opacity 0.5s;margin-top:6px">
+						${buildChamberSummary(deputyResult, deputyMaj, deputyPassed)}
+						<div style="text-align:center;margin-top:8px;padding:6px;border-radius:4px;background:${deputyPassed ? "#f0fdf4" : "#fef2f2"};border:1px solid ${deputyPassed ? "#16a34a" : "#dc2626"}">
+							<div style="font-size:14px;font-weight:700;color:${deputyPassed ? "#16a34a" : "#dc2626"};font-family:'JetBrains Mono',monospace">
+								${deputyResult.totalFor} / ${deputyResult.totalAgainst} / ${deputyResult.totalAbstain}
+							</div>
+							<div style="font-size:8px;color:${deputyPassed ? "#15803d" : "#991b1b"};font-weight:600;margin-top:2px">
+								${deputyPassed ? "✓ CHAMBER APPROVES" : "✗ CHAMBER REJECTS"} — needed ${deputyMaj}
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- DEBATE EXCERPTS (added dynamically) -->
+			<div id="debateExcerptsContainer" style="margin-top:12px;min-height:50px">
+				<div id="debateExcerptsInner"></div>
+			</div>
+
+			<!-- FINAL RESULT -->
+			<div class="chamber-summaries" style="opacity:0;transition:opacity 0.5s;margin-top:12px;padding:12px;border-radius:8px;background:${passed ? "#f0fdf4" : "#fef2f2"};border:2px solid ${passed ? "#16a34a" : "#dc2626"};text-align:center">
+				<div style="font-size:18px;font-weight:800;color:${passed ? "#16a34a" : "#dc2626"};font-family:'JetBrains Mono',monospace">
+					${passed ? "✓ MOTION CARRIED" : "✗ MOTION REJECTED"}
+				</div>
+				<div style="font-size:10px;margin-top:4px;color:${passed ? "#15803d" : "#991b1b"};font-weight:600">
+					${passed ? `Both chambers approved. EU funds absorption activated (max ${(EU_MAX_ANNUAL_ABSORPTION * 100).toFixed(0)}%/yr of available balance).` : `${!senatePassed && !deputyPassed ? "Both chambers rejected." : !senatePassed ? "The Senate rejected the motion." : "The Chamber of Deputies rejected the motion."} EU funds remain blocked.`}
+				</div>
+				${passed ? `<div style="font-size:9px;margin-top:6px;color:var(--text-muted)">Co-financing: EU ${(EU_COFINANCING_EU_SHARE * 100).toFixed(0)}% / Romania ${(EU_COFINANCING_NAT_SHARE * 100).toFixed(0)}% · Annual max: ${(EU_MAX_ANNUAL_ABSORPTION * 100).toFixed(0)}% of balance</div>` : ""}
+			</div>
+		</div>
+		<div class="nat-actions" style="justify-content:center">
+			<button class="btn btn-primary" id="pvClose" style="background:#1e1b4b;border-color:#1e1b4b" disabled>
+				Voting in progress...
+			</button>
+		</div>
+	</div>`;
+
+				const closeBtn = overlay.querySelector("#pvClose");
+				const summaries = overlay.querySelectorAll(".chamber-summaries");
+				const excerptsInner = overlay.querySelector("#debateExcerptsInner");
+
+				// Animate the voting dots
+				const circles = Array.from(overlay.querySelectorAll("circle[data-mp]"));
+				for (let i = circles.length - 1; i > 0; i--) {
+					const j = Math.floor(Math.random() * (i + 1));
+					[circles[i], circles[j]] = [circles[j], circles[i]];
+				}
+
+				let vIdx = 0;
+				const iv = setInterval(() => {
+					const batchSize = Math.floor(Math.random() * 5) + 1; // 1 to 5 votes at once
+					for (let b = 0; b < batchSize && vIdx < circles.length; b++) {
+						const c = circles[vIdx];
+						// Apply the real vote outline
+						c.setAttribute("stroke", c.getAttribute("data-target-stroke"));
+
+						// If MP has an excerpt, append it to the debate area
+						const excerptHtml = c.getAttribute("data-excerpt");
+						if (excerptHtml) {
+							const decoded = decodeURIComponent(excerptHtml);
+							if (decoded) {
+								excerptsInner.insertAdjacentHTML("beforeend", decoded);
+								// auto scroll container if it was constrained (though here it expands downward)
+							}
+						}
+						vIdx++;
+					}
+
+					if (vIdx >= circles.length) {
+						clearInterval(iv);
+						// Reveal summaries
+						summaries.forEach((s) => (s.style.opacity = "1"));
+						// Enable close button
+						closeBtn.disabled = false;
+						closeBtn.textContent = passed ? "Proceed with EU Funds" : "Noted — Retry Next Year";
+					}
+				}, 60);
+
+				closeBtn.onclick = () => {
+					overlay.remove();
+					if (onResult) onResult(passed);
+				};
+
+				const keyH = (e) => {
+					if (e.key === "Enter" || e.key === "Escape") {
+						if (closeBtn.disabled) return; // Disallow close during animation
+						e.preventDefault();
+						e.stopPropagation();
+						document.removeEventListener("keydown", keyH, true);
+						overlay.remove();
+						if (onResult) onResult(passed);
+					}
+				};
+				document.addEventListener("keydown", keyH, true);
+			}
+
+			// ═══════════════════════════════════════════════════════════════
+			// JV STABILITY: Logarithmic + synergy formula
+			// ═══════════════════════════════════════════════════════════════
+
+			function computeUnionStability(members) {
+				const N = members.length;
+				if (N < 2) return 1.0;
+
+				// Base stability: logarithmic decay (gentle for large N)
+				const baseStability = 1.0 / (1 + 0.001 * N * Math.log(N + 1));
+
+				// Synergy bonus: how homogeneous is the union?
+				const tierCounts = {};
+				let maxCount = 0;
+				let dominantTier = "SP";
+				members.forEach((m) => {
+					const bkt = m.bracket || "SP";
+					tierCounts[bkt] = (tierCounts[bkt] || 0) + 1;
+					if (tierCounts[bkt] > maxCount) {
+						maxCount = tierCounts[bkt];
+						dominantTier = bkt;
+					}
+				});
+				const dominantRatio = maxCount / N;
+				const synergyBonus = (JV_SYNERGY_BRACKETS[dominantTier] || 0.3) * dominantRatio;
+
+				// Heterogeneity penalty: different tier levels reduce cohesion
+				const orders = members.map((m) => TIER_ORDER[m.bracket] || 0);
+				const tierSpread = Math.max(...orders) - Math.min(...orders);
+				const heteroPenalty = JV_HETEROGENEITY_PENALTY * tierSpread;
+
+				// Final stability
+				const stability = baseStability * 0.4 + synergyBonus * 0.6 - heteroPenalty;
+				return Math.max(JV_STABILITY_FLOOR, Math.min(1.0, stability));
+			}
 
 			function recalculateSpending() {
 				if (!state) return;
 
+				// Reset counts
 				MINISTRIES.forEach((m) => {
 					state.spending[m.code] = 0;
 					state.ministryWords[m.code] = 0;
@@ -3209,20 +4090,42 @@
 				const editor = $("#editor");
 				if (!editor) return;
 
-    editor.querySelectorAll(".m-tag").forEach((tag) => {
-        const ministry = tag.getAttribute("data-ministry");
-        
-        // COMPLETELY SKIP MoIA - No money, no word count, no screen time
-        if (ministry === "MoIA") return; 
+				// IMPORTANT: Clean up the DOM before counting
+				editor.normalize();
 
-        if (ministry && state.spending.hasOwnProperty(ministry)) {
-            const wc = countWordsInElement(tag);
-            state.ministryWords[ministry] += wc;
-            state.spending[ministry] += (wc * state.eco.currentRate) / 1000;
-        }
-    });
+				editor.querySelectorAll(".m-tag").forEach((tag) => {
+					const ministry = tag.getAttribute("data-ministry");
+
+					if (ministry === "MoIA") return;
+
+					if (ministry && state.spending.hasOwnProperty(ministry)) {
+						const wc = countWordsInElement(tag);
+						state.ministryWords[ministry] += wc;
+						state.spending[ministry] += (wc * state.eco.currentRate) / 1000;
+					}
+				});
 
 				distributeUntaggedWords();
+
+				// EU Funds spending integration — 85/15 co-financing (real EU regulation)
+				// EU pays 85% of project costs, Romania MUST pay 15% from domestic budget
+				// Annual absorption cap prevents drawing all funds in a single year
+				if (state.euFunds && state.euFunds.useEU && state.euFunds.parliamentApproved && state.euFunds.remaining > 0 && !state.euFunds.olafTriggered) {
+					let totalSpending = 0;
+					MINISTRIES.forEach((m) => {
+						totalSpending += state.spending[m.code];
+					});
+					const euShare = totalSpending * EU_COFINANCING_EU_SHARE;
+					const natShare = totalSpending * EU_COFINANCING_NAT_SHARE;
+					// Cap by annual limit — can't absorb more than 25% of remaining per MFF year
+					const annualCapRemaining = (state.euFunds.annualCap || Infinity) - (state.euFunds.annualUsed || 0);
+					const actualEuDraw = Math.min(euShare, state.euFunds.remaining, Math.max(0, annualCapRemaining));
+					state.euFunds.remaining -= actualEuDraw;
+					state.euFunds.used += actualEuDraw;
+					state.euFunds.annualUsed = (state.euFunds.annualUsed || 0) + actualEuDraw;
+					state._nationalizationCost = (state._nationalizationCost || 0) + natShare;
+				}
+
 				scheduleCompanyUpdate();
 			}
 
@@ -3984,8 +4887,35 @@
 				if (cursorPos <= 0 || cursorPos >= fullText.length) return null;
 				if (/\s/.test(fullText[cursorPos - 1]) || /\s/.test(fullText[cursorPos])) return null;
 
+				const blockCheck = (() => {
+					const sc = range.startContainer;
+					const off = range.startOffset;
+					if (off === 0) {
+						let prev = sc.previousSibling;
+						if (!prev && sc.parentNode) prev = sc.parentNode.previousSibling;
+						if (prev) {
+							const tag = prev.nodeName;
+							if (tag === "HR" || tag === "P" || tag === "DIV" || tag === "BR") return true;
+							if (prev.nodeType === 1) {
+								const last = prev.lastChild;
+								if (last && last.nodeName === "BR") return true;
+							}
+						}
+					}
+					if (sc.nodeType === 3 && off === sc.length) {
+						let next = sc.nextSibling;
+						if (!next && sc.parentNode) next = sc.parentNode.nextSibling;
+						if (next) {
+							const tag = next.nodeName;
+							if (tag === "HR" || tag === "P" || tag === "DIV" || tag === "BR") return true;
+						}
+					}
+					return false;
+				})();
+				if (blockCheck) return null;
+
 				const allWords = [];
-				const rx = /\S+/g;
+				const rx = WORD_MATCH_REGEX;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
 					if (isValidWord(m[0])) {
@@ -4006,14 +4936,29 @@
 				editor.querySelectorAll(".m-tag").forEach((tag) => {
 					taggedRanges.push(getCharOffsets(editor, tag));
 				});
+				const _merged = [];
+				if (taggedRanges.length > 0) {
+					const _s = taggedRanges.slice().sort((a, b) => a.start - b.start);
+					let _c = { start: _s[0].start, end: _s[0].end };
+					for (let _i = 1; _i < _s.length; _i++) {
+						if (_s[_i].start <= _c.end) {
+							if (_s[_i].end > _c.end) _c.end = _s[_i].end;
+						} else {
+							_merged.push(_c);
+							_c = { start: _s[_i].start, end: _s[_i].end };
+						}
+					}
+					_merged.push(_c);
+				}
+				const mergedTagged = _merged;
 
-				const isTagged = taggedRanges.some((tr) => tr.start <= word.start && tr.end >= word.end);
+				const isTagged = mergedTagged.some((tr) => tr.start <= word.start && tr.end >= word.end);
 				if (isTagged) return null;
 
 				let uIdx = 0;
 				for (const w of allWords) {
 					if (w.globalIdx === word.globalIdx) break;
-					const wTagged = taggedRanges.some((tr) => tr.start <= w.start && tr.end >= w.end);
+					const wTagged = mergedTagged.some((tr) => tr.start <= w.start && tr.end >= w.end);
 					if (!wTagged) uIdx++;
 				}
 
@@ -4216,9 +5161,24 @@
 				editor.querySelectorAll(".m-tag").forEach((tag) => {
 					taggedRanges.push(getCharOffsets(editor, tag));
 				});
+				const _merged = [];
+				if (taggedRanges.length > 0) {
+					const _s = taggedRanges.slice().sort((a, b) => a.start - b.start);
+					let _c = { start: _s[0].start, end: _s[0].end };
+					for (let _i = 1; _i < _s.length; _i++) {
+						if (_s[_i].start <= _c.end) {
+							if (_s[_i].end > _c.end) _c.end = _s[_i].end;
+						} else {
+							_merged.push(_c);
+							_c = { start: _s[_i].start, end: _s[_i].end };
+						}
+					}
+					_merged.push(_c);
+				}
+				const mergedTagged = _merged;
 
 				const allWords = [];
-				const rx = /\S+/g;
+				const rx = WORD_MATCH_REGEX;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
 					if (isValidWord(m[0])) {
@@ -4235,7 +5195,7 @@
 				let uIdx = 0;
 				const untaggedSlotMap = {};
 				for (const w of allWords) {
-					const isTagged = taggedRanges.some((tr) => tr.start <= w.start && tr.end >= w.end);
+					const isTagged = mergedTagged.some((tr) => tr.start <= w.start && tr.end >= w.end);
 					if (!isTagged) {
 						untaggedSlotMap[w.globalIdx] = uIdx;
 						uIdx++;
@@ -4482,7 +5442,8 @@
 					const u = state.unions[ui];
 					if (!u.isActive) continue;
 
-					const collapseP = UNION_COLLAPSE_PER_MEMBER * u.memberIds.length;
+					const N = u.memberIds.length;
+					const perCapitaRate = UNION_COLLAPSE_PER_MEMBER / (1 + 0.002 * N);
 					const departures = [];
 
 					for (const mid of u.memberIds) {
@@ -4492,7 +5453,7 @@
 							continue;
 						}
 
-						let leaveP = collapseP;
+						let leaveP = perCapitaRate;
 
 						const avgRev =
 							u.memberIds.reduce((s, id) => {
@@ -4517,7 +5478,8 @@
 							const c = getCompanyById(mid);
 							if (c) c.unionId = null;
 						});
-						u.stability = Math.max(0, u.stability - departures.length * 0.04);
+						const remainingMembers = u.memberIds.map((id) => getCompanyById(id)).filter(Boolean);
+						u.stability = remainingMembers.length >= 2 ? computeUnionStability(remainingMembers) : 0;
 
 						addMarketEvent(`${departures.length} member${departures.length > 1 ? "s" : ""} left <strong>${u.name}</strong> (${u.memberIds.length} remain)`, "dissolve");
 					}
@@ -4719,7 +5681,7 @@
 
 				if (partners.length === 0) return;
 
-				const maxSize = Math.min(UNION_MAX, Math.round(initTier <= 1 ? 30 + Math.random() * 170 : initTier <= 2 ? 8 + Math.random() * 42 : initTier <= 3 ? 3 + Math.random() * 12 : initTier <= 4 ? 2 + Math.random() * 5 : 2 + Math.random() * 3));
+				const maxSize = Math.min(UNION_MAX, initTier <= 1 ? JV_SMALL_TIER_MAX : initTier <= 2 ? 500 : initTier <= 3 ? 100 : initTier <= 4 ? 15 : 6);
 
 				const members = [initiator];
 				const shuffled = [...partners].sort(() => Math.random() - 0.5);
@@ -4727,7 +5689,14 @@
 				for (const c of shuffled) {
 					if (members.length >= maxSize) break;
 					const tierDiff = Math.abs(TIER_ORDER[c.bracket] - initTier);
-					const joinP = tierDiff === 0 ? 0.65 : tierDiff === 1 ? 0.25 : 0.08;
+					let joinP;
+					if (tierDiff === 0) {
+						joinP = initTier <= 1 ? 0.88 : initTier <= 2 ? 0.75 : 0.65;
+					} else if (tierDiff === 1) {
+						joinP = 0.25;
+					} else {
+						joinP = 0.08;
+					}
 					if (Math.random() < joinP) members.push(c);
 				}
 
@@ -4741,7 +5710,7 @@
 					memberIds: members.map((m) => m.id),
 					leaderId: initiator.id,
 					highestBracket: highestBkt,
-					stability: Math.max(0.15, 1 - members.length * 0.003),
+					stability: computeUnionStability(members),
 					isActive: true,
 					formedAtStep: state.stepCount,
 				};
@@ -5249,7 +6218,7 @@
 				companyRenderTimer = setTimeout(() => {
 					updateCompanyAssignedOnly();
 					updateCompanySummary();
-				}, 400);
+				}, 700);
 			}
 
 			function checkNationalisationResistance(selStart, selEnd) {
@@ -5259,7 +6228,7 @@
 				const fullText = editor.textContent || "";
 
 				const allWords = [];
-				const rx = /\S+/g;
+				const rx = WORD_MATCH_REGEX;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
 					if (isValidWord(m[0])) {
@@ -5272,11 +6241,26 @@
 					taggedRanges.push(getCharOffsets(editor, tag));
 				});
 
+				const mergedTagged = [];
+				if (taggedRanges.length > 0) {
+					const sorted = taggedRanges.slice().sort((a, b) => a.start - b.start);
+					let cur = { start: sorted[0].start, end: sorted[0].end };
+					for (let i = 1; i < sorted.length; i++) {
+						if (sorted[i].start <= cur.end) {
+							if (sorted[i].end > cur.end) cur.end = sorted[i].end;
+						} else {
+							mergedTagged.push(cur);
+							cur = { start: sorted[i].start, end: sorted[i].end };
+						}
+					}
+					mergedTagged.push(cur);
+				}
+
 				let uIdx = 0;
 				const resistors = [];
 
 				for (const w of allWords) {
-					const isTagged = taggedRanges.some((tr) => tr.start <= w.start && tr.end >= w.end);
+					const isTagged = mergedTagged.some((tr) => tr.start <= w.start && tr.end >= w.end);
 					if (!isTagged) {
 						if (w.start < selEnd && w.end > selStart) {
 							if (uIdx < state.wordMap.length) {
@@ -5332,7 +6316,7 @@
 
 			function findFullyDeletedWords(fullText, deletionSpans) {
 				const allWords = [];
-				const rx = /\S+/g;
+				const rx = WORD_MATCH_REGEX;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
 					if (isValidWord(m[0])) {
@@ -5350,10 +6334,25 @@
 				editor.querySelectorAll(".m-tag").forEach((tag) => {
 					taggedRanges.push(getCharOffsets(editor, tag));
 				});
+				const _merged = [];
+				if (taggedRanges.length > 0) {
+					const _s = taggedRanges.slice().sort((a, b) => a.start - b.start);
+					let _c = { start: _s[0].start, end: _s[0].end };
+					for (let _i = 1; _i < _s.length; _i++) {
+						if (_s[_i].start <= _c.end) {
+							if (_s[_i].end > _c.end) _c.end = _s[_i].end;
+						} else {
+							_merged.push(_c);
+							_c = { start: _s[_i].start, end: _s[_i].end };
+						}
+					}
+					_merged.push(_c);
+				}
+				const mergedTagged = _merged;
 
 				const fullText = editor.textContent || "";
 				const allWords = [];
-				const rx = /\S+/g;
+				const rx = WORD_MATCH_REGEX;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
 					if (isValidWord(m[0])) {
@@ -5364,7 +6363,7 @@
 				let uIdx = 0;
 				const untaggedCompanyMap = {};
 				for (const w of allWords) {
-					const isTagged = taggedRanges.some((tr) => tr.start <= w.start && tr.end >= w.end);
+					const isTagged = mergedTagged.some((tr) => tr.start <= w.start && tr.end >= w.end);
 					if (!isTagged) {
 						if (uIdx < state.wordMap.length) {
 							untaggedCompanyMap[w.globalIdx] = state.wordMap[uIdx];
@@ -5754,36 +6753,32 @@
 				applySegments(editor, segments);
 
 				restoreSelection(editor, { start: selEnd, end: selEnd, collapsed: true });
+				lastWordCount = countAllWords();
 				recalculateSpending();
 				updatePanel();
 				state.editorHTML = editor.innerHTML;
 			}
-function handleMinistryTrigger(ministryCode) {
-    const sel = window.getSelection();
-    const editor = $("#editor");
+			function handleMinistryTrigger(ministryCode) {
+				const sel = window.getSelection();
+				const editor = $("#editor");
 
-    // 1. If text is highlighted: Tag it and enter sticky mode for that ministry
-    if (sel && !sel.isCollapsed && editor.contains(sel.anchorNode)) {
-        tagSelection(ministryCode); // Apply the tag to the highlight
-        state.ministryMode = ministryCode; // Set sticky mode for continued typing
-        showMinistryModeIndicator(state.ministryMode);
-    } 
-    // 2. If just a cursor: Toggle sticky mode
-    else {
-        if (state.ministryMode === ministryCode) {
-            // Already in this mode? Exit it.
-            exitCurrentTag(); 
-        } else {
-            // Not in this mode? Enter it.
-            state.ministryMode = ministryCode;
-            showMinistryModeIndicator(state.ministryMode);
-            editor.focus();
-        }
-    }
-    
-    // Hide context menu in case it was open
-    hideCtxMenu();
-}
+				if (sel && !sel.isCollapsed && editor.contains(sel.anchorNode)) {
+					tagSelection(ministryCode);
+					state.ministryMode = ministryCode;
+					showMinistryModeIndicator(state.ministryMode);
+				}
+				else {
+					if (state.ministryMode === ministryCode) {
+						exitCurrentTag();
+					} else {
+						state.ministryMode = ministryCode;
+						showMinistryModeIndicator(state.ministryMode);
+						editor.focus();
+					}
+				}
+
+				hideCtxMenu();
+			}
 			function buildSegmentsWithExclusions(totalLen, existingTags, selStart, selEnd, newMinistry, excluded) {
 				const map = new Array(totalLen).fill(null);
 
@@ -5984,6 +6979,18 @@ function handleMinistryTrigger(ministryCode) {
 							const span = document.createElement("span");
 							span.className = "m-tag";
 							span.setAttribute("data-ministry", split.ministry);
+							let anc = tNode.parentElement;
+							while (anc && anc !== editor) {
+								if (anc.style) {
+									if (anc.style.backgroundColor && !span.style.background) span.style.background = anc.style.backgroundColor;
+									if (anc.style.color && !span.style.color) span.style.color = anc.style.color;
+								}
+								if (anc.tagName === "FONT") {
+									if (anc.color && !span.style.color) span.style.color = anc.color;
+									if (anc.getAttribute("bgcolor") && !span.style.background) span.style.background = anc.getAttribute("bgcolor");
+								}
+								anc = anc.parentElement;
+							}
 							span.textContent = chunk;
 							frag.appendChild(span);
 						} else {
@@ -6298,12 +7305,12 @@ function handleMinistryTrigger(ministryCode) {
 				{ name: "Franklin Gothic", value: "Franklin Gothic Medium, sans-serif" },
 			];
 
-			// 2. The formatting function that creates the font previews
 			function formatFontOption(state) {
 				if (!state.id) return state.text;
-				// Create a span with the font-family applied so you can see the preview
 				return jQuery('<span style="font-family: ' + state.id + '; font-size: 14px;">' + state.text + "</span>");
 			}
+			let _savedSelForFont = null;
+
 			function refreshFontSelect(fontList) {
 				const $sel = jQuery("#fontFamilySelect");
 
@@ -6319,14 +7326,34 @@ function handleMinistryTrigger(ministryCode) {
 				$sel.select2({
 					placeholder: "Search Fonts...",
 					allowClear: true,
-					width: "140px", // This keeps the box in your toolbar 140px
-					dropdownAutoWidth: true, // This allows the dropdown to be wider
+					width: "140px",
+					dropdownAutoWidth: true,
 					templateResult: formatFontOption,
 					templateSelection: formatFontOption,
 				});
+
+				$sel.on("select2:opening", function () {
+					const editor = document.getElementById("editor");
+					_savedSelForFont = saveSelection(editor);
+				});
+
+				$sel.on("change", function () {
+					const font = jQuery(this).val();
+					const editor = document.getElementById("editor");
+
+					if (font && _savedSelForFont) {
+						restoreSelection(editor, _savedSelForFont);
+						document.execCommand("fontName", false, font);
+						_savedSelForFont = null;
+						editor.focus();
+
+						setTimeout(() => {
+							jQuery(this).val(null).trigger("change.select2");
+						}, 10);
+					}
+				});
 			}
 
-			// 4. The function that asks Windows for the fonts
 			async function unlockSystemFonts() {
 				const btn = document.getElementById("fontUnlockBtn");
 
@@ -6356,7 +7383,6 @@ function handleMinistryTrigger(ministryCode) {
 
 					fontList.sort((a, b) => a.name.localeCompare(b.name));
 
-					// Update the dropdown with the new list
 					refreshFontSelect(fontList);
 
 					btn.textContent = "🔓";
@@ -6369,13 +7395,10 @@ function handleMinistryTrigger(ministryCode) {
 				}
 			}
 
-			// --- INITIALIZATION ---
 
-			// Initialize with fallbacks immediately
 			jQuery(document).ready(function () {
 				refreshFontSelect(FONT_FALLBACKS);
 
-				// Create the Unlock Button if it doesn't exist
 				if (!document.getElementById("fontUnlockBtn")) {
 					const unlockBtn = document.createElement("button");
 					unlockBtn.id = "fontUnlockBtn";
@@ -6385,19 +7408,9 @@ function handleMinistryTrigger(ministryCode) {
 					unlockBtn.title = "Unlock Windows System Fonts";
 					unlockBtn.onclick = unlockSystemFonts;
 
-					// Insert it right after the Font Select
 					const selectEl = document.getElementById("fontFamilySelect");
 					selectEl.parentNode.insertBefore(unlockBtn, selectEl.nextSibling);
 				}
-
-				// Handle font changes
-				jQuery("#fontFamilySelect").on("change", function () {
-					const font = jQuery(this).val();
-					if (font) {
-						document.execCommand("fontName", false, font);
-						document.getElementById("editor").focus();
-					}
-				});
 			});
 			let _savedSelForColor = null;
 
@@ -6972,6 +7985,10 @@ function handleMinistryTrigger(ministryCode) {
 				renderCompanyTable();
 				updateCompanySummary();
 				renderUnionsPanel();
+
+				if (typeof enforceParliamentBan === "function") {
+					enforceParliamentBan();
+				}
 			}
 
 			function drawRuler() {
@@ -7132,7 +8149,7 @@ function handleMinistryTrigger(ministryCode) {
 				while (w2End < fullText.length && /\S/.test(fullText[w2End])) w2End++;
 
 				const allWords = [];
-				const rx = /\S+/g;
+				const rx = WORD_MATCH_REGEX;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
 					if (isValidWord(m[0])) {
@@ -7194,15 +8211,30 @@ function handleMinistryTrigger(ministryCode) {
 				editor.querySelectorAll(".m-tag").forEach((tag) => {
 					taggedRanges.push(getCharOffsets(editor, tag));
 				});
+				const _merged = [];
+				if (taggedRanges.length > 0) {
+					const _s = taggedRanges.slice().sort((a, b) => a.start - b.start);
+					let _c = { start: _s[0].start, end: _s[0].end };
+					for (let _i = 1; _i < _s.length; _i++) {
+						if (_s[_i].start <= _c.end) {
+							if (_s[_i].end > _c.end) _c.end = _s[_i].end;
+						} else {
+							_merged.push(_c);
+							_c = { start: _s[_i].start, end: _s[_i].end };
+						}
+					}
+					_merged.push(_c);
+				}
+				const mergedTagged = _merged;
 
-				const word1Tagged = taggedRanges.some((tr) => tr.start <= merger.word1.start && tr.end >= merger.word1.end);
-				const word2Tagged = taggedRanges.some((tr) => tr.start <= merger.word2.start && tr.end >= merger.word2.end);
+				const word1Tagged = mergedTagged.some((tr) => tr.start <= merger.word1.start && tr.end >= merger.word1.end);
+				const word2Tagged = mergedTagged.some((tr) => tr.start <= merger.word2.start && tr.end >= merger.word2.end);
 
 				if (word1Tagged || word2Tagged) {
 					return null;
 				}
 				const allWords = [];
-				const rx = /\S+/g;
+				const rx = WORD_MATCH_REGEX;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
 					if (isValidWord(m[0])) {
@@ -7218,7 +8250,7 @@ function handleMinistryTrigger(ministryCode) {
 				let uIdx = 0;
 				const untaggedCompanyMap = {};
 				for (const w of allWords) {
-					const isTagged = taggedRanges.some((tr) => tr.start <= w.start && tr.end >= w.end);
+					const isTagged = mergedTagged.some((tr) => tr.start <= w.start && tr.end >= w.end);
 					if (!isTagged) {
 						if (uIdx < state.wordMap.length) {
 							untaggedCompanyMap[w.globalIdx] = state.wordMap[uIdx];
@@ -7426,13 +8458,18 @@ function handleMinistryTrigger(ministryCode) {
 
 				const editor = $("#editor");
 				let renderDebounce = null;
+				let _simStepCounter = 0;
 
 				editor.addEventListener("input", (e) => {
 					if (isProcessing) return;
 
-    if (!isCursorInMoIA()) {
-        simulateStep();
-    }
+					if (!isCursorInMoIA()) {
+						_simStepCounter++;
+						if (_simStepCounter >= 4) {
+							_simStepCounter = 0;
+							simulateStep();
+						}
+					}
 					const currentWords = countAllWords();
 					const wordDelta = currentWords - lastWordCount;
 
@@ -7458,7 +8495,7 @@ function handleMinistryTrigger(ministryCode) {
 						state.editorHTML = editor.innerHTML;
 
 						isProcessing = false;
-					}, 100);
+					}, 250);
 				});
 				document.addEventListener("selectionchange", () => {
 					updateAlignButtons();
@@ -7489,6 +8526,20 @@ function handleMinistryTrigger(ministryCode) {
 						return;
 					}
 
+					if (state && state._parliamentBanActive) {
+						e.preventDefault();
+						return;
+					}
+
+					if (state && typeof checkParliamentBan === "function") {
+						const ban = checkParliamentBan();
+						if (ban) {
+							e.preventDefault();
+							if (typeof enforceParliamentBan === "function") enforceParliamentBan();
+							return;
+						}
+					}
+
 					if (e.inputType === "insertText" && e.data && /\s/.test(e.data)) {
 						if (state && state.companies && state.wordMap && state.wordMap.length > 0 && !state._bypassResistance) {
 							const splitInfo = checkWordSplitResistance();
@@ -7509,8 +8560,45 @@ function handleMinistryTrigger(ministryCode) {
 
 							if (!currentTag || currentTag.getAttribute("data-ministry") !== state.ministryMode) {
 								e.preventDefault();
-								const html = `<span class="m-tag" data-ministry="${state.ministryMode}">${e.data}</span>`;
-								document.execCommand("insertHTML", false, html);
+								const newSpan = document.createElement("span");
+								newSpan.className = "m-tag";
+								newSpan.setAttribute("data-ministry", state.ministryMode);
+								newSpan.textContent = e.data;
+								if (currentTag && currentTag.getAttribute("data-ministry") !== state.ministryMode) {
+									const range = sel.getRangeAt(0);
+									const preRange = document.createRange();
+									preRange.setStart(currentTag, 0);
+									preRange.setEnd(range.startContainer, range.startOffset);
+									const textBefore = preRange.toString();
+									const textAfter = currentTag.textContent.slice(textBefore.length);
+									const parent = currentTag.parentNode;
+									if (textBefore.length > 0) {
+										const beforeSpan = document.createElement("span");
+										beforeSpan.className = "m-tag";
+										beforeSpan.setAttribute("data-ministry", currentTag.getAttribute("data-ministry"));
+										beforeSpan.textContent = textBefore;
+										parent.insertBefore(beforeSpan, currentTag);
+									}
+									parent.insertBefore(newSpan, currentTag);
+									if (textAfter.length > 0) {
+										const afterSpan = document.createElement("span");
+										afterSpan.className = "m-tag";
+										afterSpan.setAttribute("data-ministry", currentTag.getAttribute("data-ministry"));
+										afterSpan.textContent = textAfter;
+										parent.insertBefore(afterSpan, currentTag);
+									}
+									parent.removeChild(currentTag);
+								} else {
+									const range = sel.getRangeAt(0);
+									range.deleteContents();
+									range.insertNode(newSpan);
+								}
+								const newRange = document.createRange();
+								newRange.setStart(newSpan.firstChild, newSpan.firstChild.length);
+								newRange.collapse(true);
+								sel.removeAllRanges();
+								sel.addRange(newRange);
+								onContentChange();
 								return;
 							}
 						}
@@ -7652,7 +8740,7 @@ function handleMinistryTrigger(ministryCode) {
 					}
 
 					const allWords = [];
-					const rx = /\S+/g;
+					const rx = WORD_MATCH_REGEX;
 					let m;
 					while ((m = rx.exec(fullText)) !== null) {
 						if (isValidWord(m[0])) {
@@ -7673,8 +8761,23 @@ function handleMinistryTrigger(ministryCode) {
 					editor.querySelectorAll(".m-tag").forEach((tag) => {
 						taggedRanges.push(getCharOffsets(editor, tag));
 					});
+					const _merged = [];
+					if (taggedRanges.length > 0) {
+						const _s = taggedRanges.slice().sort((a, b) => a.start - b.start);
+						let _c = { start: _s[0].start, end: _s[0].end };
+						for (let _i = 1; _i < _s.length; _i++) {
+							if (_s[_i].start <= _c.end) {
+								if (_s[_i].end > _c.end) _c.end = _s[_i].end;
+							} else {
+								_merged.push(_c);
+								_c = { start: _s[_i].start, end: _s[_i].end };
+							}
+						}
+						_merged.push(_c);
+					}
+					const mergedTagged = _merged;
 
-					const affectedUntagged = affectedWords.filter((w) => !taggedRanges.some((tr) => tr.start <= w.start && tr.end >= w.end));
+					const affectedUntagged = affectedWords.filter((w) => !mergedTagged.some((tr) => tr.start <= w.start && tr.end >= w.end));
 
 					if (affectedUntagged.length === 0) return;
 
@@ -7703,7 +8806,7 @@ function handleMinistryTrigger(ministryCode) {
 					const untaggedCompanyMap = {};
 					const untaggedSlotIdxMap = {};
 					for (const w of allWords) {
-						const isTagged = taggedRanges.some((tr) => tr.start <= w.start && tr.end >= w.end);
+						const isTagged = mergedTagged.some((tr) => tr.start <= w.start && tr.end >= w.end);
 						if (!isTagged) {
 							if (state.wordMap && uIdx < state.wordMap.length) {
 								untaggedCompanyMap[w.globalIdx] = state.wordMap[uIdx];
@@ -7865,10 +8968,8 @@ function handleMinistryTrigger(ministryCode) {
 					const letterLawsuits = checkLetterDeletionSuits(deletionSpans);
 					console.log("Letter lawsuits:", letterLawsuits);
 					console.log("Word lawsuits:", wordLawsuits);
-					const wordSuingIds = new Set(wordLawsuits.map((l) => l.company.id));
-					const dedupedLetterLawsuits = letterLawsuits.filter((l) => !wordSuingIds.has(l.company.id));
 
-					if (dedupedLetterLawsuits.length > 0 || wordLawsuits.length > 0) {
+					if (letterLawsuits.length > 0 || wordLawsuits.length > 0) {
 						e.preventDefault();
 
 						const pendingAction = {
@@ -7877,11 +8978,7 @@ function handleMinistryTrigger(ministryCode) {
 							deletionSpans: [...deletionSpans],
 						};
 
-						if (dedupedLetterLawsuits.length > 0) {
-							showLetterDeletionLawsuit(dedupedLetterLawsuits, deletionSpans, wordLawsuits.length > 0 ? wordLawsuits : null, pendingAction);
-						} else {
-							showDeletionLawsuit(wordLawsuits, deletionSpans, pendingAction);
-						}
+						processSequentialDeletion(letterLawsuits.length > 0 ? letterLawsuits : null, wordLawsuits.length > 0 ? wordLawsuits : null, deletionSpans, pendingAction);
 					}
 				});
 			});
@@ -8366,18 +9463,6 @@ function handleMinistryTrigger(ministryCode) {
 								overlay.querySelector("#hearingNext").click();
 							}
 						});
-						overlay.querySelector("#bargAcceptRuling").onclick = () => {
-							cleanup();
-							unlockEditor();
-							if (result.sideEffects) applyExecutiveOrderEffects(result.sideEffects);
-							onAccept(result.finalCost);
-						};
-
-						overlay.querySelector("#bargBack").onclick = () => {
-							cleanup();
-							state.courtRecord.caseNumber--;
-							onOriginalPopup();
-						};
 					}
 
 					function showFinalTally() {
@@ -8530,33 +9615,34 @@ function handleMinistryTrigger(ministryCode) {
 			function getUntaggedWordTexts() {
 				const editor = $("#editor");
 				if (!editor) return [];
-				const fullText = editor.textContent || "";
-				const taggedRanges = [];
-				editor.querySelectorAll(".m-tag").forEach((tag) => {
-					taggedRanges.push(getCharOffsets(editor, tag));
-				});
 				const words = [];
-				const rx = /\S+/g;
-				let m;
-				while ((m = rx.exec(fullText)) !== null) {
-					if (isValidWord(m[0])) {
-						const isTagged = taggedRanges.some((tr) => tr.start <= m.index && tr.end >= m.index + m[0].length);
-						if (!isTagged) words.push(m[0]);
+				const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, {
+					acceptNode(node) {
+						const tag = node.parentElement && node.parentElement.closest(".m-tag");
+						if (tag) return NodeFilter.FILTER_REJECT;
+						return NodeFilter.FILTER_ACCEPT;
+					},
+				});
+				let n;
+				while ((n = walker.nextNode())) {
+					const rx = WORD_MATCH_REGEX;
+					let m;
+					while ((m = rx.exec(n.nodeValue)) !== null) {
+						if (isValidWord(m[0])) words.push(m[0]);
 					}
 				}
 				return words;
 			}
 			function isCursorInMoIA() {
-    const sel = window.getSelection();
-    if (!sel || !sel.rangeCount) return false;
-    
-    let node = sel.anchorNode;
-    // If we are at a text node, check the parent element
-    if (node.nodeType === 3) node = node.parentElement;
-    
-    const tag = node.closest(".m-tag");
-    return tag && tag.getAttribute("data-ministry") === "MoIA";
-}
+				const sel = window.getSelection();
+				if (!sel || !sel.rangeCount) return false;
+
+				let node = sel.anchorNode;
+				if (node.nodeType === 3) node = node.parentElement;
+
+				const tag = node.closest(".m-tag");
+				return tag && tag.getAttribute("data-ministry") === "MoIA";
+			}
 			function isSlotGovernmentOwned(slotIndex) {
 				const editor = $("#editor");
 				if (!editor) return false;
@@ -8567,8 +9653,23 @@ function handleMinistryTrigger(ministryCode) {
 				editor.querySelectorAll(".m-tag").forEach((tag) => {
 					taggedRanges.push(getCharOffsets(editor, tag));
 				});
+				const _merged = [];
+				if (taggedRanges.length > 0) {
+					const _s = taggedRanges.slice().sort((a, b) => a.start - b.start);
+					let _c = { start: _s[0].start, end: _s[0].end };
+					for (let _i = 1; _i < _s.length; _i++) {
+						if (_s[_i].start <= _c.end) {
+							if (_s[_i].end > _c.end) _c.end = _s[_i].end;
+						} else {
+							_merged.push(_c);
+							_c = { start: _s[_i].start, end: _s[_i].end };
+						}
+					}
+					_merged.push(_c);
+				}
+				const mergedTagged = _merged;
 				const allWords = [];
-				const rx = /\S+/g;
+				const rx = WORD_MATCH_REGEX;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
 					if (isValidWord(m[0])) {
@@ -8577,7 +9678,7 @@ function handleMinistryTrigger(ministryCode) {
 				}
 				let uIdx = 0;
 				for (const w of allWords) {
-					const tagged = taggedRanges.some((tr) => tr.start <= w.start && tr.end >= w.end);
+					const tagged = mergedTagged.some((tr) => tr.start <= w.start && tr.end >= w.end);
 					if (!tagged) {
 						if (uIdx === slotIndex) return false;
 						uIdx++;
@@ -10336,7 +11437,7 @@ function handleMinistryTrigger(ministryCode) {
 				const fullText = editor.textContent || "";
 
 				const allWords = [];
-				const rx = /\S+/g;
+				const rx = WORD_MATCH_REGEX;
 				let m;
 				while ((m = rx.exec(fullText)) !== null) {
 					if (isValidWord(m[0])) {
@@ -10353,11 +11454,26 @@ function handleMinistryTrigger(ministryCode) {
 				editor.querySelectorAll(".m-tag").forEach((tag) => {
 					taggedRanges.push(getCharOffsets(editor, tag));
 				});
+				const _merged = [];
+				if (taggedRanges.length > 0) {
+					const _s = taggedRanges.slice().sort((a, b) => a.start - b.start);
+					let _c = { start: _s[0].start, end: _s[0].end };
+					for (let _i = 1; _i < _s.length; _i++) {
+						if (_s[_i].start <= _c.end) {
+							if (_s[_i].end > _c.end) _c.end = _s[_i].end;
+						} else {
+							_merged.push(_c);
+							_c = { start: _s[_i].start, end: _s[_i].end };
+						}
+					}
+					_merged.push(_c);
+				}
+				const mergedTagged = _merged;
 
 				let uIdx = 0;
 				const untaggedSlotMap = {};
 				for (const w of allWords) {
-					const isTagged = taggedRanges.some((tr) => tr.start <= w.start && tr.end >= w.end);
+					const isTagged = mergedTagged.some((tr) => tr.start <= w.start && tr.end >= w.end);
 					if (!isTagged) {
 						if (uIdx < state.wordSlots.length) {
 							untaggedSlotMap[w.globalIdx] = uIdx;
@@ -10372,7 +11488,7 @@ function handleMinistryTrigger(ministryCode) {
 					const overlapping = deletionSpans.filter((ds) => w.start < ds.end && w.end > ds.start);
 					if (overlapping.length === 0) continue;
 
-					const isTagged = taggedRanges.some((tr) => tr.start <= w.start && tr.end >= w.end);
+					const isTagged = mergedTagged.some((tr) => tr.start <= w.start && tr.end >= w.end);
 					if (isTagged) continue;
 
 					const slotIdx = untaggedSlotMap[w.globalIdx];
@@ -10392,46 +11508,63 @@ function handleMinistryTrigger(ministryCode) {
 						if (charPos >= slot.letterShares.length) continue;
 
 						const ls = slot.letterShares[charPos];
-						if (ls.ownerId === null) continue;
 
-						const co = getCompanyById(ls.ownerId);
-						if (!co || !co.isActive) continue;
-						if (!co.canResist) continue;
-						if (!willResistWithMemory(co, `letter-${slotIdx}-${charPos}`)) continue;
+						const letterChar = w.text[charPos] || "?";
+						if (letterChar.trim() === "" || /^[^\w\s]+$/.test(letterChar)) continue;
 
-						const letterValue = getLetterValue(slot);
-						const resistStr = getResistanceStrength(co);
-						const resistMultiplier = 0.6 + resistStr * 0.8;
-						const claimedAmount = letterValue * co.natMarkup * resistMultiplier;
+						const candidateOwners = [];
 
-						if (!suingByCompany.has(ls.ownerId)) {
-							suingByCompany.set(ls.ownerId, {
-								company: co,
-								letters: [],
-								totalClaimed: 0,
-								resistanceStrength: resistStr,
+						if (ls.ownerId !== null) {
+							const co = getCompanyById(ls.ownerId);
+							if (co && co.isActive && co.canResist) {
+								candidateOwners.push({ co, claimPct: ls.fractions ? 100 - (ls.fractions.find((f) => f.type === "float")?.pct || 0) : 100 });
+							}
+						}
+
+						if (ls.fractions) {
+							ls.fractions.forEach((frac) => {
+								if (frac.type !== "float" && frac.ownerId) {
+									const fracCo = getCompanyById(frac.ownerId);
+									if (fracCo && fracCo.isActive && fracCo.canResist && !candidateOwners.find((c) => c.co.id === fracCo.id)) {
+										candidateOwners.push({ co: fracCo, claimPct: frac.pct || 0 });
+									}
+								}
 							});
 						}
 
-						const entry = suingByCompany.get(ls.ownerId);
+						for (const { co, claimPct } of candidateOwners) {
+							if (!willResistWithMemory(co, `letter-${slotIdx}-${charPos}`)) continue;
 
-						const alreadyCounted = entry.letters.some((l) => l.slotIndex === slotIdx && l.letterIndex === charPos);
-						if (alreadyCounted) continue;
+							const letterValue = getLetterValue(slot);
+							const resistStr = getResistanceStrength(co);
+							const resistMultiplier = 0.6 + resistStr * 0.8;
+							const claimedAmount = letterValue * co.natMarkup * resistMultiplier * (claimPct / 100);
 
-						const letterChar = w.text[charPos] || "?";
-						if (letterChar.trim() === "" || /^[^\w\s]+$/.test(letterChar)) {
-							continue;
+							if (!suingByCompany.has(co.id)) {
+								suingByCompany.set(co.id, {
+									company: co,
+									letters: [],
+									totalClaimed: 0,
+									resistanceStrength: resistStr,
+								});
+							}
+
+							const entry = suingByCompany.get(co.id);
+							const alreadyCounted = entry.letters.some((l) => l.slotIndex === slotIdx && l.letterIndex === charPos);
+							if (alreadyCounted) continue;
+
+							entry.letters.push({
+								wordText: wordText,
+								letterIndex: charPos,
+								absolutePos: absPos,
+								letterChar: letterChar,
+								slotIndex: slotIdx,
+								paidValue: letterValue,
+								claimedAmount: claimedAmount,
+								claimPct,
+							});
+							entry.totalClaimed += claimedAmount;
 						}
-						entry.letters.push({
-							wordText: wordText,
-							letterIndex: charPos,
-							absolutePos: absPos,
-							letterChar: letterChar,
-							slotIndex: slotIdx,
-							paidValue: letterValue,
-							claimedAmount: claimedAmount,
-						});
-						entry.totalClaimed += claimedAmount;
 					}
 				}
 
@@ -10450,6 +11583,1016 @@ function handleMinistryTrigger(ministryCode) {
 
 				return lawsuits;
 			}
+
+
+			function buildLetterClassAction(letterLawsuit, slot, charPos) {
+				if (!slot || !slot.letterShares || charPos >= slot.letterShares.length) return null;
+
+				const ls = slot.letterShares[charPos];
+				if (!ls) return null;
+
+				const shareholders = [];
+				let totalSharePct = 0;
+
+				if (ls.ownerId !== null) {
+					const co = getCompanyById(ls.ownerId);
+					if (co && co.isActive) {
+						shareholders.push({
+							company: co,
+							ownershipPct: ls.fractions ? 100 - (ls.fractions.find((f) => f.type === "float")?.pct || 0) : 100,
+							isDemanding: false,
+						});
+						totalSharePct += shareholders[0].ownershipPct;
+					}
+				}
+
+				if (ls.fractions) {
+					ls.fractions.forEach((frac) => {
+						if (frac.type !== "float" && frac.ownerId) {
+							const co = getCompanyById(frac.ownerId);
+							if (co && co.isActive && !shareholders.find((s) => s.company.id === co.id)) {
+								shareholders.push({
+									company: co,
+									ownershipPct: frac.pct || 0,
+									isDemanding: false,
+								});
+								totalSharePct += frac.pct || 0;
+							}
+						}
+					});
+				}
+
+				if (shareholders.length === 0) return null;
+
+				shareholders.forEach((sh) => {
+					const co = sh.company;
+					const riskFactor = co._riskAppetite || 0.5;
+					const resistStr = getResistanceStrength(co);
+					const demandChance = 0.2 + riskFactor * 0.4 + resistStr * 0.3;
+					sh.isDemanding = Math.random() < demandChance;
+				});
+
+				shareholders.sort((a, b) => b.ownershipPct - a.ownershipPct);
+				const leadPlaintiff = shareholders[0];
+
+				let demandVoteWeight = 0;
+				shareholders.forEach((sh) => {
+					if (sh.isDemanding) {
+						demandVoteWeight += sh.ownershipPct / Math.max(1, totalSharePct);
+					}
+				});
+
+				const thresholdRange = CLASS_ACTION_DEMAND_THRESHOLD[leadPlaintiff.company.bracket] || [0.3, 0.5];
+				const threshold = thresholdRange[0] + Math.random() * (thresholdRange[1] - thresholdRange[0]);
+
+				const thresholdCrossed = demandVoteWeight >= threshold;
+
+				const letterValue = getLetterValue(slot);
+				const wordOwner = slot.ownerId !== null ? getCompanyById(slot.ownerId) : null;
+				const paymentToWordCompany = wordOwner ? letterValue * 0.15 : 0;
+
+				let baseAsk = letterValue + paymentToWordCompany;
+
+				let totalDemandExtra = 0;
+				shareholders.forEach((sh) => {
+					if (sh.isDemanding) {
+						const markup = sh.company.natMarkup || 1.5;
+						sh.demandAmount = baseAsk * (sh.ownershipPct / 100) * (markup - 1) * 0.5;
+						totalDemandExtra += sh.demandAmount;
+					} else {
+						sh.demandAmount = 0;
+					}
+				});
+
+				let inflationMargin = 0;
+				if (thresholdCrossed) {
+					inflationMargin = CLASS_ACTION_MARGIN_RANGE[0] + Math.random() * (CLASS_ACTION_MARGIN_RANGE[1] - CLASS_ACTION_MARGIN_RANGE[0]);
+					baseAsk *= 1 + inflationMargin;
+				}
+
+				const totalAsk = baseAsk + totalDemandExtra;
+
+				return {
+					slot,
+					charPos,
+					letterChar: slot.wordText ? slot.wordText[charPos] : "?",
+					shareholders,
+					leadPlaintiff,
+					demandVoteWeight,
+					threshold,
+					thresholdCrossed,
+					inflationMargin,
+					baseAsk,
+					totalDemandExtra,
+					totalAsk,
+					totalAskB: totalAsk / 1000,
+					letterValue,
+					paymentToWordCompany,
+				};
+			}
+
+			function showLetterClassActionPopup(classAction, deletionSpans, pendingAction, onDone, onCancel) {
+				const overlay = showPopupOverlay((overlay) => {
+					const ca = classAction;
+					const demanders = ca.shareholders.filter((s) => s.isDemanding);
+					const acceptors = ca.shareholders.filter((s) => !s.isDemanding);
+
+					overlay.innerHTML = `
+					<div class="nat-popup">
+						<div class="nat-header">
+							<span class="nat-icon">⚖</span>
+							<h3>Class Action — Letter «${ca.letterChar}»</h3>
+						</div>
+						<div class="nat-body">
+							<p>Class action filed by <strong style="color:${BRACKET_COLORS[ca.leadPlaintiff.company.bracket]}">${ca.leadPlaintiff.company.name}</strong>
+							(${ca.leadPlaintiff.company.bracketName}) on behalf of <strong>${ca.shareholders.length}</strong> shareholder${ca.shareholders.length !== 1 ? "s" : ""}
+							of the letter «<strong>${ca.letterChar}</strong>» from the word «${ca.slot.wordText || "???"}».</p>
+
+							${
+								ca.thresholdCrossed
+									? `
+							<div style="margin:8px 0;padding:6px 10px;background:#fef3c7;border-radius:4px;border:1px solid #fde68a;font-size:10px;color:#92400e">
+								⚠ <strong>Demand threshold exceeded</strong> — ${(ca.demandVoteWeight * 100).toFixed(1)}% of shareholders (weighted) demanded additional compensation 
+								(threshold: ${(ca.threshold * 100).toFixed(0)}% for ${ca.leadPlaintiff.company.bracket}).
+								The total price was inflated by <strong>${(ca.inflationMargin * 100).toFixed(1)}%</strong> for all shareholders.
+							</div>`
+									: ""
+							}
+
+							<div style="margin-top:8px">
+								<div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px">
+									SHAREHOLDERS — WEIGHTED VOTE: ${(ca.demandVoteWeight * 100).toFixed(1)}%
+								</div>
+								${ca.shareholders
+									.map(
+										(sh) => `
+								<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;margin:2px 0;background:${sh.isDemanding ? "#fef2f2" : "#f0fdf4"};border-radius:3px;font-size:10px">
+									<span>
+										<strong style="color:${BRACKET_COLORS[sh.company.bracket]}">${sh.company.name}</strong>
+										<span style="color:var(--text-muted);margin-left:4px">${sh.company.bracket} · ${sh.ownershipPct.toFixed(1)}%</span>
+									</span>
+									<span style="font-weight:600;color:${sh.isDemanding ? "var(--danger)" : "var(--success)"}">
+										${sh.isDemanding ? "ADDITIONAL DEMAND +" + sh.demandAmount.toFixed(2) + " M€" : "ACCEPTS BASE RATE"}
+									</span>
+								</div>`
+									)
+									.join("")}
+							</div>
+
+							<div class="nat-total" style="margin-top:10px">
+								<span class="nat-total-label">Letter value</span>
+								<span class="nat-total-val">${ca.letterValue.toFixed(2)} M€</span>
+							</div>
+							<div class="nat-total">
+								<span class="nat-total-label">Additional compensation demanded</span>
+								<span class="nat-total-val">${ca.totalDemandExtra.toFixed(2)} M€</span>
+							</div>
+							<div class="nat-total" style="border-top:2px solid var(--border)">
+								<span class="nat-total-label" style="font-weight:700">TOTAL DEMANDS</span>
+								<span class="nat-total-val" style="font-size:14px;color:var(--danger)">${ca.totalAsk.toFixed(2)} M€ · ${ca.totalAskB.toFixed(4)} B€</span>
+							</div>
+						</div>
+						<div class="nat-actions">
+							<button class="btn" id="caCancel">Cancel</button>
+							<button class="btn" id="caCourt" style="color:var(--accent)">Court</button>
+							<button class="btn btn-primary" id="caPay" style="background:var(--danger);border-color:var(--danger)">
+								Pay ${ca.totalAsk.toFixed(1)} M€
+							</button>
+						</div>
+					</div>`;
+
+					function cleanup() {
+						document.removeEventListener("keydown", keyHandler, true);
+						overlay.remove();
+					}
+
+					overlay.querySelector("#caCancel").onclick = () => {
+						cleanup();
+						if (onCancel) onCancel();
+					};
+
+					overlay.querySelector("#caPay").onclick = () => {
+						cleanup();
+						state._nationalizationCost = (state._nationalizationCost || 0) + ca.totalAskB;
+						ca.shareholders.forEach((sh) => {
+							sh.company.canResist = false;
+							sh.company.natMarkup = 0;
+						});
+						state._companyIndex = null;
+						if (onDone) onDone(ca.totalAsk);
+					};
+
+					overlay.querySelector("#caCourt").onclick = () => {
+						document.removeEventListener("keydown", keyHandler, true);
+						overlay.remove();
+
+						showBargaining(
+							{
+								type: "deletion",
+								originalCost: ca.totalAsk,
+								companies: ca.shareholders.map((s) => s.company),
+								description: `Class Action — letter «${ca.letterChar}» — ${ca.shareholders.length} shareholder${ca.shareholders.length !== 1 ? "s" : ""}`,
+							},
+							(finalCostM) => {
+								state._nationalizationCost = (state._nationalizationCost || 0) + finalCostM / 1000;
+								ca.shareholders.forEach((sh) => {
+									sh.company.canResist = false;
+									sh.company.natMarkup = 0;
+								});
+								state._companyIndex = null;
+								if (onDone) onDone(finalCostM);
+							},
+							() => {
+								showLetterClassActionPopup(classAction, deletionSpans, pendingAction, onDone, onCancel);
+							}
+						);
+					};
+
+					const keyHandler = (e) => {
+						if (e.key === "Enter") {
+							e.preventDefault();
+							e.stopPropagation();
+							overlay.querySelector("#caPay").click();
+						} else if (e.key === "Escape") {
+							e.preventDefault();
+							e.stopPropagation();
+							cleanup();
+							if (onCancel) onCancel();
+						} else if (e.key === "c" || e.key === "C") {
+							e.preventDefault();
+							e.stopPropagation();
+							overlay.querySelector("#caCourt").click();
+						}
+					};
+					document.addEventListener("keydown", keyHandler, true);
+				});
+			}
+
+
+			function runSequentialLawsuits(queue, deletionSpans, pendingAction, onAllDone) {
+				if (queue.length === 0) {
+					onAllDone(0);
+					return;
+				}
+
+				let currentIndex = 0;
+				let cumulativeCost = 0;
+
+				function processNext() {
+					if (currentIndex >= queue.length) {
+						onAllDone(cumulativeCost);
+						return;
+					}
+
+					const item = queue[currentIndex];
+					currentIndex++;
+
+					if (item.type === "letterClassAction") {
+						showLetterClassActionPopup(
+							item.classAction,
+							deletionSpans,
+							pendingAction,
+							(costM) => {
+								cumulativeCost += costM;
+								processNext();
+							},
+							() => {
+							}
+						);
+					} else if (item.type === "wordLawsuit") {
+						showSingleWordLawsuit(
+							item.lawsuit,
+							deletionSpans,
+							pendingAction,
+							(costM) => {
+								cumulativeCost += costM;
+								processNext();
+							},
+							() => {
+							}
+						);
+					}
+				}
+
+				processNext();
+			}
+
+			function showSingleWordLawsuit(lawsuit, deletionSpans, pendingAction, onDone, onCancel) {
+				const l = lawsuit;
+				const co = l.company;
+
+				const overlay = showPopupOverlay((overlay) => {
+					overlay.innerHTML = `
+					<div class="nat-popup">
+						<div class="nat-header">
+							<span class="nat-icon">📋</span>
+							<h3>Individual Action — ${co.name}</h3>
+						</div>
+						<div class="nat-body">
+							<p>The company <strong style="color:${BRACKET_COLORS[co.bracket]}">${co.name}</strong>
+							(${co.bracketName}) files an individual compensation claim for
+							<strong>${l.wordsAffected ? l.wordsAffected.length : 0}</strong> affected word${l.wordsAffected && l.wordsAffected.length !== 1 ? "s" : ""}
+							out of a total of <strong>${l.totalAssignedWords}</strong> owned words.</p>
+
+							<div style="margin:8px 0;padding:10px 12px;background:var(--bg);border:1px solid var(--border-light);border-radius:4px">
+								<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+									<span style="font-weight:700;font-size:12px;color:${BRACKET_COLORS[co.bracket]}">${co.name}</span>
+									<span style="font-size:9px;color:var(--text-muted)">${co.bracketName} · 🛡 ${(l.resistanceStrength * 100).toFixed(0)}%</span>
+								</div>
+								<div style="font-size:10px;color:var(--text-secondary);line-height:1.8">
+									Affected words: <strong>${l.wordsAffected ? l.wordsAffected.length : 0}</strong><br>
+									Total owned words: <strong>${l.totalAssignedWords}</strong><br>
+									Bid price: <strong>${co.bidPrice.toFixed(3)}×</strong><br>
+									Litigation markup: <strong>${co.natMarkup.toFixed(2)}×</strong><br>
+									<span style="color:var(--danger);font-weight:700">
+										Demand: ${(l.liability * 1000).toFixed(2)} M€ (${l.liability.toFixed(4)} B€)
+									</span>
+								</div>
+								${
+									l.wordsAffected
+										? `<div style="margin-top:6px;font-size:9px;color:var(--text-faint)">
+									Words: ${l.wordsAffected
+										.slice(0, 8)
+										.map((w) => "«" + w.text + "»")
+										.join(", ")}${l.wordsAffected.length > 8 ? " …+" + (l.wordsAffected.length - 8) : ""}
+								</div>`
+										: ""
+								}
+							</div>
+
+							<div class="nat-total">
+								<span class="nat-total-label">Compensation demanded</span>
+								<span class="nat-total-val" style="color:var(--danger)">${(l.liability * 1000).toFixed(2)} M€ · ${l.liability.toFixed(4)} B€</span>
+							</div>
+						</div>
+						<div class="nat-actions">
+							<button class="btn" id="swlCancel">Cancel</button>
+							<button class="btn" id="swlCourt" style="color:var(--accent)">Court</button>
+							<button class="btn btn-primary" id="swlPay" style="background:var(--danger);border-color:var(--danger)">
+								Pay ${(l.liability * 1000).toFixed(1)} M€
+							</button>
+						</div>
+					</div>`;
+
+					function cleanup() {
+						document.removeEventListener("keydown", keyHandler, true);
+						overlay.remove();
+					}
+
+					overlay.querySelector("#swlCancel").onclick = () => {
+						cleanup();
+						if (onCancel) onCancel();
+					};
+
+					overlay.querySelector("#swlPay").onclick = () => {
+						cleanup();
+						state._nationalizationCost = (state._nationalizationCost || 0) + l.liability;
+						co.canResist = false;
+						co.natMarkup = 0;
+						state._companyIndex = null;
+						if (onDone) onDone(l.liability * 1000);
+					};
+
+					overlay.querySelector("#swlCourt").onclick = () => {
+						document.removeEventListener("keydown", keyHandler, true);
+						overlay.remove();
+
+						showBargaining(
+							{
+								type: "deletion",
+								originalCost: l.liability * 1000,
+								companies: [co],
+								description: `Individual Action — ${co.name} — ${l.wordsAffected ? l.wordsAffected.length : 0} words`,
+							},
+							(finalCostM) => {
+								state._nationalizationCost = (state._nationalizationCost || 0) + finalCostM / 1000;
+								co.canResist = false;
+								co.natMarkup = 0;
+								state._companyIndex = null;
+								if (onDone) onDone(finalCostM);
+							},
+							() => {
+								showSingleWordLawsuit(lawsuit, deletionSpans, pendingAction, onDone, onCancel);
+							}
+						);
+					};
+
+					const keyHandler = (e) => {
+						if (e.key === "Enter") {
+							e.preventDefault();
+							e.stopPropagation();
+							overlay.querySelector("#swlPay").click();
+						} else if (e.key === "Escape") {
+							e.preventDefault();
+							e.stopPropagation();
+							cleanup();
+							if (onCancel) onCancel();
+						} else if (e.key === "c" || e.key === "C") {
+							e.preventDefault();
+							e.stopPropagation();
+							overlay.querySelector("#swlCourt").click();
+						}
+					};
+					document.addEventListener("keydown", keyHandler, true);
+				});
+			}
+
+
+			function wordCompanyRefusalCheck(wordSlot, letterIndex) {
+				if (!wordSlot || wordSlot.ownerId === null) return false;
+
+				const wordOwner = getCompanyById(wordSlot.ownerId);
+				if (!wordOwner || !wordOwner.isActive) return false;
+
+				const memKey = `letter-${wordSlot.slotIndex || 0}-${letterIndex}`;
+				if (wordOwner._rejectionMemory && wordOwner._rejectionMemory[memKey]) {
+					return true;
+				}
+
+				const totalLetters = wordSlot.letterCount || (wordSlot.wordText ? wordSlot.wordText.length : 1);
+
+				let privateLetters = 0;
+				if (wordSlot.letterShares) {
+					wordSlot.letterShares.forEach((ls) => {
+						if (ls.ownerId !== null) privateLetters++;
+					});
+				} else {
+					privateLetters = totalLetters;
+				}
+
+				const remainingRatio = Math.max(0, privateLetters - 1) / Math.max(1, totalLetters);
+				const lossRatio = 1 - remainingRatio;
+
+				const tierBase = WORD_REFUSAL_BASE[wordOwner.bracket] || 0.15;
+
+				let refusalChance;
+				if (lossRatio >= 0.9) {
+					refusalChance = 0.8 + tierBase * 0.2;
+				} else if (lossRatio >= 0.6) {
+					refusalChance = 0.4 + lossRatio * 0.4 + tierBase * 0.15;
+				} else if (lossRatio >= 0.3) {
+					refusalChance = 0.15 + lossRatio * 0.3 + tierBase * 0.1;
+				} else {
+					refusalChance = lossRatio * 0.3 + tierBase * 0.08;
+				}
+
+				const resistStr = getResistanceStrength(wordOwner);
+				refusalChance += resistStr * 0.1;
+
+				refusalChance = Math.max(0.02, Math.min(0.95, refusalChance));
+
+				const refuses = Math.random() < refusalChance;
+
+				if (refuses) {
+					if (!wordOwner._rejectionMemory) wordOwner._rejectionMemory = {};
+					wordOwner._rejectionMemory[memKey] = true;
+				}
+
+				return refuses;
+			}
+
+			function showWordRefusalPopup(wordSlot, letterIndex, classAction, onAccept, onRefused) {
+				const wordOwner = getCompanyById(wordSlot.ownerId);
+				if (!wordOwner) {
+					onAccept();
+					return;
+				}
+
+				const totalLetters = wordSlot.letterCount || (wordSlot.wordText ? wordSlot.wordText.length : 1);
+				const letterChar = wordSlot.wordText ? wordSlot.wordText[letterIndex] : "?";
+				let privateLetters = 0;
+				if (wordSlot.letterShares) {
+					wordSlot.letterShares.forEach((ls) => {
+						if (ls.ownerId !== null) privateLetters++;
+					});
+				}
+
+				const overlay = showPopupOverlay((overlay) => {
+					overlay.innerHTML = `
+					<div class="nat-popup">
+						<div class="nat-header">
+							<span class="nat-icon">🚫</span>
+							<h3>Refusal to sell — ${wordOwner.name}</h3>
+						</div>
+						<div class="nat-body">
+							<p>The company <strong style="color:${BRACKET_COLORS[wordOwner.bracket]}">${wordOwner.name}</strong>
+							(${wordOwner.bracketName}), the owner of the word «<strong>${wordSlot.wordText || "???"}</strong>»,
+							<strong style="color:var(--danger)">refuses</strong> the sale of the letter «<strong>${letterChar}</strong>» to the government.</p>
+
+							<div style="margin:8px 0;padding:8px 10px;background:#fef2f2;border-radius:4px;border:1px solid #fecaca;font-size:10px;color:#991b1b;line-height:1.6">
+								<strong>Justification:</strong> The company owns ${privateLetters}/${totalLetters} private letters in this word.
+								The sale would reduce the asset to ${privateLetters - 1}/${totalLetters} letters
+								(loss of ${((1 / Math.max(1, privateLetters)) * 100).toFixed(0)}% of the remaining assets).
+								${privateLetters <= 2 ? "The loss would represent an existential risk for the company's investment." : ""}
+								<br><br>
+								<strong>Art. 44(1) Constitution of Romania</strong> — The right to private property is guaranteed.
+								The company invokes constitutional protection against the forced sale of assets.
+							</div>
+
+							<p style="font-size:10px;color:var(--text-muted);margin-top:8px">
+								The government can contest the refusal in court. If the government wins, it receives the rights to the
+								<strong>letter</strong>, not the entire word.
+							</p>
+						</div>
+						<div class="nat-actions">
+							<button class="btn" id="wrAccept">Accept refusal</button>
+							<button class="btn btn-primary" id="wrCourt" style="background:var(--accent);border-color:var(--accent)">
+								Contest in court
+							</button>
+						</div>
+					</div>`;
+
+					function cleanup() {
+						document.removeEventListener("keydown", keyHandler, true);
+						overlay.remove();
+					}
+
+					overlay.querySelector("#wrAccept").onclick = () => {
+						cleanup();
+						onRefused();
+					};
+
+					overlay.querySelector("#wrCourt").onclick = () => {
+						document.removeEventListener("keydown", keyHandler, true);
+						overlay.remove();
+
+						const letterVal = getLetterValue(wordSlot);
+						const courtCost = letterVal * wordOwner.natMarkup * 0.7;
+
+						showBargaining(
+							{
+								type: "nationalisation",
+								originalCost: courtCost,
+								companies: [wordOwner],
+								description: `Contest refusal — letter «${letterChar}» from «${wordSlot.wordText}» — ${wordOwner.name}`,
+							},
+							(finalCostM) => {
+								state._nationalizationCost = (state._nationalizationCost || 0) + finalCostM / 1000;
+								if (wordSlot.letterShares && letterIndex < wordSlot.letterShares.length) {
+									wordSlot.letterShares[letterIndex].ownerId = null;
+									wordSlot.letterShares[letterIndex]._govControlled = true;
+								}
+								state._companyIndex = null;
+								onAccept();
+							},
+							() => {
+								showWordRefusalPopup(wordSlot, letterIndex, classAction, onAccept, onRefused);
+							}
+						);
+					};
+
+					const keyHandler = (e) => {
+						if (e.key === "Enter") {
+							e.preventDefault();
+							e.stopPropagation();
+							overlay.querySelector("#wrCourt").click();
+						} else if (e.key === "Escape") {
+							e.preventDefault();
+							e.stopPropagation();
+							cleanup();
+							onRefused();
+						}
+					};
+					document.addEventListener("keydown", keyHandler, true);
+				});
+			}
+
+
+			function getParliamentBanKey() {
+				return state ? `parliament_ban_${state.sessionId}` : null;
+			}
+
+			function checkParliamentBan() {
+				const key = getParliamentBanKey();
+				if (!key) return null;
+
+				try {
+					const stored = localStorage.getItem(key);
+					if (!stored) return null;
+					const ban = JSON.parse(stored);
+					const elapsed = (Date.now() - ban.banStart) / 60000;
+					if (elapsed < ban.banDuration) {
+						return {
+							...ban,
+							remainingMinutes: ban.banDuration - elapsed,
+							remainingMs: (ban.banDuration - elapsed) * 60000,
+						};
+					} else {
+						localStorage.removeItem(key);
+						return null;
+					}
+				} catch (e) {
+					return null;
+				}
+			}
+
+			function storeParliamentBan(investigation) {
+				const key = getParliamentBanKey();
+				if (!key) return;
+
+				try {
+					localStorage.setItem(
+						key,
+						JSON.stringify({
+							banStart: Date.now(),
+							banDuration: investigation.banDuration,
+							commission: investigation.commission,
+							intlCompany: investigation.intlCompany,
+							wordsDeleted: investigation.wordsDeleted,
+							companiesAffected: investigation.companiesAffected,
+						})
+					);
+				} catch (e) {
+					console.warn("Could not store parliament ban:", e);
+				}
+			}
+
+			function checkParliamentInvestigation(wordsDeletedNow) {
+				if (!state) return null;
+
+				state.totalWordsDeleted = (state.totalWordsDeleted || 0) + wordsDeletedNow;
+
+				if (state.totalWordsDeleted < PARLIAMENT_WORD_THRESHOLD) return null;
+				if (state._parliamentBanActive) return null;
+
+				const affectedCompanies = new Set();
+				if (state.wordSlots) {
+					state.wordSlots.forEach((slot) => {
+						if (slot.ownerId !== null) affectedCompanies.add(slot.ownerId);
+						if (slot.letterShares) {
+							slot.letterShares.forEach((ls) => {
+								if (ls.ownerId !== null) affectedCompanies.add(ls.ownerId);
+							});
+						}
+					});
+				}
+
+				const companiesCount = affectedCompanies.size;
+				const banDuration = Math.max(PARLIAMENT_BAN_MINUTES, PARLIAMENT_BAN_MINUTES * Math.ceil(companiesCount / 100));
+
+				const commission = PARLIAMENT_COMMISSIONS[Math.floor(Math.random() * PARLIAMENT_COMMISSIONS.length)];
+
+				let intlCompany = null;
+				const bigCompanies = state.companies.filter((c) => c.isActive && (c.bracket === "MN" || c.bracket === "IC"));
+				for (const c of bigCompanies) {
+					if (Math.random() < 0.1) {
+						intlCompany = c;
+						break;
+					}
+				}
+
+				return {
+					wordsDeleted: state.totalWordsDeleted,
+					companiesAffected: companiesCount,
+					banDuration,
+					commission,
+					intlCompany,
+					hotarareNr: Math.floor(Math.random() * 900) + 100,
+					year: new Date().getFullYear(),
+				};
+			}
+
+			function showParliamentPopup(investigation, onExpire) {
+				state._parliamentBanActive = true;
+				storeParliamentBan(investigation);
+				lockEditor();
+
+				const overlay = document.createElement("div");
+				overlay.className = "nat-overlay";
+				overlay.style.zIndex = "20000";
+				document.body.appendChild(overlay);
+
+				const endTime = Date.now() + investigation.banDuration * 60000;
+
+				function formatTime(ms) {
+					const totalSec = Math.max(0, Math.ceil(ms / 1000));
+					const min = Math.floor(totalSec / 60);
+					const sec = totalSec % 60;
+					return `${min}:${String(sec).padStart(2, "0")}`;
+				}
+
+				overlay.innerHTML = `
+				<div class="nat-popup" style="max-width:640px">
+					<div class="nat-header" style="background:#1e1b4b;border-radius:8px 8px 0 0">
+						<span class="nat-icon" style="font-size:24px">🏛</span>
+						<h3 style="color:#e0e7ff;font-size:15px">PARLIAMENT OF ROMANIA — PARLIAMENTARY INQUIRY</h3>
+					</div>
+					<div class="nat-body" style="background:#fefce8;border:2px solid #ca8a04">
+						<div style="text-align:center;margin-bottom:12px">
+							<div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#92400e;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">
+								Parliamentary Resolution no. ${investigation.hotarareNr}/${investigation.year}
+							</div>
+							<div style="font-size:13px;font-weight:700;color:#1e1b4b">
+								SUSPENSION OF DRAFTING TOOL
+							</div>
+						</div>
+
+						<div style="font-size:11px;line-height:1.7;color:#1c1917;margin-bottom:12px">
+							<p>Given the deletion of <strong>${investigation.wordsDeleted}</strong> contracted words,
+							affecting <strong>${investigation.companiesAffected}</strong> private economic operators,</p>
+
+							<p style="margin-top:6px"><strong>${investigation.commission.name}</strong>
+							(${investigation.commission.chamber}) has opened a parliamentary inquiry
+							under <strong>${investigation.commission.law}</strong>,
+							regarding: <em>${investigation.commission.article}</em>.</p>
+
+							<p style="margin-top:6px">In accordance with <strong>Art. 64(4) Constitution of Romania</strong> and
+							<strong>Law no. 113/1999</strong> regarding parliamentary inquiry, the drafting tool
+							is suspended for the duration of the preliminary procedure.</p>
+
+							${
+								investigation.intlCompany
+									? `
+							<div style="margin-top:8px;padding:8px 10px;background:#fef2f2;border-radius:4px;border:1px solid #fecaca">
+								<strong style="color:#991b1b">⚠ International Action</strong><br>
+								<strong style="color:${BRACKET_COLORS[investigation.intlCompany.bracket]}">${investigation.intlCompany.name}</strong>
+								(${investigation.intlCompany.bracketName}) has filed a complaint with the
+								<strong>European Court of Justice</strong> under
+								<strong>Directive 2014/24/EU Art. 72</strong> and
+								<strong>Art. 1 Protocol 1 ECHR</strong>,
+								requesting the immediate suspension of all contractual terminations.
+							</div>`
+									: ""
+							}
+						</div>
+
+						<div style="text-align:center;margin:16px 0">
+							<div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#92400e;margin-bottom:4px">
+								ACTIVE SUSPENSION — TIME REMAINING
+							</div>
+							<div id="parliamentTimer" style="font-family:'JetBrains Mono',monospace;font-size:36px;font-weight:700;color:#dc2626">
+								${formatTime(investigation.banDuration * 60000)}
+							</div>
+							<div style="margin-top:4px;font-size:9px;color:var(--text-muted)">
+								Suspended under Parl. Res. no. ${investigation.hotarareNr}/${investigation.year}
+							</div>
+						</div>
+
+						<div style="font-size:9px;color:var(--text-muted);text-align:center;font-style:italic">
+							Fiscal session: ${state.sessionId} · This suspension is registered and cannot be evaded by reloading the page.
+						</div>
+					</div>
+				</div>`;
+
+				const timerEl = overlay.querySelector("#parliamentTimer");
+				const timerInterval = setInterval(() => {
+					const remaining = endTime - Date.now();
+					if (remaining <= 0) {
+						clearInterval(timerInterval);
+						timerEl.textContent = "0:00";
+						timerEl.style.color = "var(--success)";
+
+						state._parliamentBanActive = false;
+						const key = getParliamentBanKey();
+						if (key) {
+							try {
+								localStorage.removeItem(key);
+							} catch (e) {}
+						}
+
+						setTimeout(() => {
+							overlay.remove();
+							unlockEditor();
+							if (onExpire) onExpire();
+						}, 1500);
+					} else {
+						timerEl.textContent = formatTime(remaining);
+						if (remaining < 60000) {
+							timerEl.style.color = Math.floor(Date.now() / 500) % 2 === 0 ? "#dc2626" : "#f87171";
+						}
+					}
+				}, 250);
+			}
+
+			function enforceParliamentBan() {
+				const ban = checkParliamentBan();
+				if (!ban) return false;
+
+				state._parliamentBanActive = true;
+
+				showParliamentPopup(
+					{
+						wordsDeleted: ban.wordsDeleted,
+						companiesAffected: ban.companiesAffected,
+						banDuration: ban.remainingMinutes,
+						commission: ban.commission,
+						intlCompany: ban.intlCompany,
+						hotarareNr: ban.hotarareNr || Math.floor(Math.random() * 900) + 100,
+						year: ban.year || new Date().getFullYear(),
+					},
+					() => {
+					}
+				);
+
+				return true;
+			}
+
+
+			function processSequentialDeletion(letterLawsuits, wordLawsuits, deletionSpans, pendingAction) {
+
+				const queue = [];
+
+				if (letterLawsuits && letterLawsuits.length > 0) {
+					for (const ll of letterLawsuits) {
+						for (const letter of ll.letters) {
+							const slotIdx = letter.slotIndex;
+							const charPos = letter.letterIndex;
+							const slot = state.wordSlots[slotIdx];
+							if (!slot) continue;
+
+							const wordRefuses = wordCompanyRefusalCheck(slot, charPos);
+
+							const classAction = buildLetterClassAction(ll, slot, charPos);
+							if (classAction) {
+								queue.push({
+									type: "letterClassAction",
+									classAction,
+									wordRefuses,
+									slot,
+									charPos,
+								});
+							}
+						}
+					}
+				}
+
+				if (wordLawsuits && wordLawsuits.length > 0) {
+					const sorted = [...wordLawsuits].sort((a, b) => a.resistanceStrength - b.resistanceStrength);
+					for (const wl of sorted) {
+						const co = wl.company;
+						let totalSoldLetters = 0;
+						let totalWordLetters = 0;
+						if (wl.wordsAffected) {
+							wl.wordsAffected.forEach((w) => {
+								const slotIdx = state.wordSlots.findIndex((s) => s.wordText === w.text);
+								if (slotIdx >= 0) {
+									const slot = state.wordSlots[slotIdx];
+									if (slot && slot.letterShares) {
+										const totalLetters = slot.letterShares.length;
+										const soldLetters = slot.letterShares.filter((ls) => ls.ownerId === null || ls._govControlled).length;
+										totalSoldLetters += soldLetters;
+										totalWordLetters += totalLetters;
+									}
+								}
+							});
+						}
+						const letterRecoveryRatio = totalWordLetters > 0 ? totalSoldLetters / totalWordLetters : 0;
+
+						const deflatedMarkup = 0.3 + (1 - letterRecoveryRatio) * 0.4;
+						const adjustedLiability = wl.liability * (1 - letterRecoveryRatio * 0.6) * deflatedMarkup;
+
+						queue.push({
+							type: "wordLawsuit",
+							lawsuit: {
+								...wl,
+								liability: adjustedLiability,
+								originalLiability: wl.liability,
+								letterRecoveryRatio,
+							},
+						});
+					}
+				}
+
+				if (queue.length === 0) {
+					const wordsDeletedNow = deletionSpans.reduce((sum, ds) => {
+						const text = ($("#editor").textContent || "").slice(ds.start, ds.end);
+						const words = text.match(WORD_MATCH_REGEX) || [];
+						return sum + words.filter((w) => isValidWord(w)).length;
+					}, 0);
+					const investigation = checkParliamentInvestigation(wordsDeletedNow);
+					executeFinalDeletion(deletionSpans, pendingAction, 0);
+					if (investigation) showParliamentPopup(investigation, () => {});
+					return;
+				}
+
+				let currentIdx = 0;
+				let totalCost = 0;
+
+				function processNextInQueue() {
+					if (currentIdx >= queue.length) {
+						const investigation = checkParliamentInvestigation(
+							deletionSpans.reduce((sum, ds) => {
+								const text = ($("#editor").textContent || "").slice(ds.start, ds.end);
+								const words = text.match(WORD_MATCH_REGEX) || [];
+								return sum + words.filter((w) => isValidWord(w)).length;
+							}, 0)
+						);
+
+						if (investigation) {
+							executeFinalDeletion(deletionSpans, pendingAction, totalCost);
+							showParliamentPopup(investigation, () => {});
+						} else {
+							executeFinalDeletion(deletionSpans, pendingAction, totalCost);
+						}
+						return;
+					}
+
+					const item = queue[currentIdx];
+					currentIdx++;
+
+					if (item.type === "letterClassAction") {
+						if (item.wordRefuses) {
+							showWordRefusalPopup(
+								item.slot,
+								item.charPos,
+								item.classAction,
+								() => {
+									const wordOwnerCo = item.slot.ownerId ? getCompanyById(item.slot.ownerId) : null;
+									let adjustedCA = item.classAction;
+									if (wordOwnerCo) {
+										const remaining = item.classAction.shareholders.filter((sh) => sh.company.id !== wordOwnerCo.id);
+										if (remaining.length > 0) {
+											const newDemandExtra = remaining.reduce((s, sh) => s + (sh.demandAmount || 0), 0);
+											const newBase = item.classAction.letterValue + item.classAction.paymentToWordCompany;
+											const newTotal = newBase + newDemandExtra;
+											adjustedCA = {
+												...item.classAction,
+												shareholders: remaining,
+												leadPlaintiff: remaining[0],
+												totalDemandExtra: newDemandExtra,
+												totalAsk: newTotal,
+												totalAskB: newTotal / 1000,
+											};
+										} else {
+											processNextInQueue();
+											return;
+										}
+									}
+									showLetterClassActionPopup(
+										adjustedCA,
+										deletionSpans,
+										pendingAction,
+										(costM) => {
+											totalCost += costM;
+											processNextInQueue();
+										},
+										() => {
+										}
+									);
+								},
+								() => {
+									processNextInQueue();
+								}
+							);
+						} else {
+							showLetterClassActionPopup(
+								item.classAction,
+								deletionSpans,
+								pendingAction,
+								(costM) => {
+									totalCost += costM;
+									processNextInQueue();
+								},
+								() => {
+								}
+							);
+						}
+					} else if (item.type === "wordLawsuit") {
+						showSingleWordLawsuit(
+							item.lawsuit,
+							deletionSpans,
+							pendingAction,
+							(costM) => {
+								totalCost += costM;
+								processNextInQueue();
+							},
+							() => {
+							}
+						);
+					}
+				}
+
+				processNextInQueue();
+			}
+
+			function executeFinalDeletion(deletionSpans, pendingAction, totalCostM) {
+				if (totalCostM > 0) {
+					state._nationalizationCost = (state._nationalizationCost || 0) + totalCostM / 1000;
+				}
+				state._companyIndex = null;
+
+				const ed = $("#editor");
+				unlockEditor();
+				state._bypassResistance = true;
+
+				const sorted = [...deletionSpans].sort((a, b) => b.start - a.start);
+				for (const span of sorted) {
+					restoreSelection(ed, { start: span.start, end: span.end, collapsed: false });
+					document.execCommand("delete", false);
+				}
+
+				if (pendingAction && pendingAction.data !== null) {
+					if (pendingAction.inputType === "insertParagraph" || pendingAction.inputType === "insertLineBreak") {
+						document.execCommand("insertParagraph", false);
+					} else {
+						document.execCommand("insertText", false, pendingAction.data);
+					}
+				}
+
+				state._bypassResistance = false;
+				onContentChange();
+			}
+
 			function showLetterDeletionLawsuit(lawsuits, deletionSpans, wordLawsuits, pendingAction) {
 				const totalLiability = lawsuits.reduce((s, l) => s + l.liability, 0);
 				const totalLetters = lawsuits.reduce((s, l) => s + l.totalLettersAffected, 0);
@@ -10616,6 +12759,132 @@ function handleMinistryTrigger(ministryCode) {
 						}
 					};
 					document.addEventListener("keydown", keyHandler, true);
+				});
+			}
+			if (state) state.copyAnnotated = false;
+
+			function toggleAnnotationMode() {
+				state.copyAnnotated = !state.copyAnnotated;
+				const btn = $("#btnToggleAnnotate");
+				const status = $("#annotateStatus");
+
+				if (state.copyAnnotated) {
+					btn.classList.add("active");
+					status.textContent = "Annotated Copy";
+					status.style.color = "var(--accent)";
+				} else {
+					btn.classList.remove("active");
+					status.textContent = "Plain Copy";
+					status.style.color = "";
+				}
+			}
+
+			function getAnnotatedText() {
+				const editor = $("#editor");
+				if (!editor) return "";
+
+				let untaggedWordCounter = 0;
+				let result = "";
+
+				const WORD_REGEX = /[\p{L}\p{N}]+/gu;
+
+				function traverse(node) {
+					if (node.nodeType === 1 && node.classList.contains("m-tag")) {
+						const ministry = node.getAttribute("data-ministry");
+						result += `[${ministry}: ${node.textContent}] `;
+						return;
+					}
+
+					if (node.nodeType === 3) {
+						const text = node.nodeValue;
+
+						const parts = text.split(/([^\p{L}\p{N}]+)/gu);
+
+						parts.forEach((part) => {
+							if (!part) return;
+
+							if (/[\p{L}\p{N}]+/u.test(part) && isValidWord(part)) {
+								const slotIdx = untaggedWordCounter++;
+								const slot = state.wordSlots ? state.wordSlots[slotIdx] : null;
+								const wordOwner = slot ? getCompanyById(slot.ownerId) : null;
+								const ownerName = wordOwner ? wordOwner.name : "No-owner";
+
+								let innerContent = "";
+
+								if (slot && slot.letterShares && slot.letterShares.length > 0) {
+									const chars = part.split("");
+									chars.forEach((char, charIdx) => {
+										const ls = slot.letterShares[charIdx];
+										const lOwner = ls && ls.ownerId !== null ? getCompanyById(ls.ownerId) : null;
+										const hasFloat = ls && ls.isOpen && ls.fractions;
+
+										if (lOwner || hasFloat) {
+											let lName = lOwner ? lOwner.name : "Unowned";
+											let floatStr = "";
+											if (hasFloat) {
+												const f = ls.fractions.find((frac) => frac.type === "float");
+												if (f && f.pct > 0) floatStr = ` with ${f.pct.toFixed(1)}% float`;
+											}
+											innerContent += `[letter owner ${lName}${floatStr}: ${char}] `;
+										} else {
+											innerContent += char;
+										}
+									});
+									result += `[Private ${wordOwner ? "owner " + ownerName : "No-owner"}: ${innerContent.trim()}]`;
+								} else {
+									result += `[Private ${wordOwner ? "owner " + ownerName : "No-owner"}: ${part}]`;
+								}
+							} else {
+								result += part;
+							}
+						});
+					}
+					else if (node.nodeType === 1) {
+						if (node.tagName === "BR") {
+							result += "\n";
+						} else if (node.tagName === "HR") {
+							result += "\n--- BREAK ---\n";
+						} else {
+							node.childNodes.forEach((child) => traverse(child));
+							if (["P", "DIV", "LI"].includes(node.tagName)) result += "\n";
+						}
+					}
+				}
+
+				editor.childNodes.forEach((node) => traverse(node));
+
+				return result.replace(/[ ]{2,}/g, " ").trim();
+			}
+			document.addEventListener("copy", (e) => {
+				if (state && state.copyAnnotated) {
+					e.preventDefault();
+					const text = getAnnotatedText();
+					e.clipboardData.setData("text/plain", text);
+
+					const si = $("#saveIndicator");
+					if (si) {
+						const original = si.textContent;
+						si.textContent = "📋 Annotated Copy";
+						si.classList.add("saved");
+						setTimeout(() => {
+							si.textContent = original;
+							si.classList.remove("saved");
+						}, 1500);
+					}
+				}
+			});
+			function copyToClipboard() {
+				const textToCopy = state.copyAnnotated ? getAnnotatedText() : $("#editor").innerText;
+
+				navigator.clipboard.writeText(textToCopy).then(() => {
+					const si = $("#saveIndicator");
+					const oldText = si.textContent;
+					si.textContent = "Copied!";
+					si.style.color = "var(--accent)";
+					setTimeout(() => {
+						si.textContent = oldText;
+						si.style.color = "";
+					}, 1500);
 				});
 			}
 		</script>
